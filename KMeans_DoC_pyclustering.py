@@ -203,10 +203,6 @@ countsMCS = np.array([(labelsMCS==i).sum() for i in range(n_clusters)])/lens["MC
 countsUWS = np.array([(labelsUWS==i).sum() for i in range(n_clusters)])/lens["UWS"]
 
 
-# print("counts",countsCNT,countsMCS,countsUWS)
-# to_save = np.vstack((countsCNT,countsMCS,countsUWS))
-# np.savetxt("../chewed_data/occupations_3clusters_alldim_euclidean.txt",to_save)
-
 mat_CNT,stat_CNT,ent_CNT = utils.transition_matrix(labelsCNT)
 mat_MCS,stat_MCS,ent_MCS = utils.transition_matrix(labelsMCS)
 mat_UWS,stat_UWS,ent_UWS = utils.transition_matrix(labelsUWS)

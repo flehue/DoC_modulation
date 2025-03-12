@@ -8,13 +8,11 @@ Created on Wed Mar 20 12:05:44 2024
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
-from scipy.stats import gamma
-# from scipy.stats import ks_2samp as ks
-# import pandas as pd
-# import levy
+from scipy.stats import gamma,skew,ttest_ind,kurtosis as kurt
+from statsmodels.stats.multitest import multipletests
+import utils
 import seaborn as sns
 import warnings
-from scipy.stats import skew
 warnings.filterwarnings("ignore")
 
 savefolder = "chewed_data/"
@@ -104,6 +102,7 @@ UWSsplit = split_data(dataUWS,lenis["UWS"])
 
 #%% OBTENER PARAMETROS DE LEVY
 
+##we save empirical kurtosis 
 
 CNT_params = np.zeros((13,4))
 MCS_params = np.zeros((25,4))
@@ -112,21 +111,18 @@ UWS_params = np.zeros((20,4))
 for i in range(13):
     print(i)
     dist = CNT_jump_lengths[i]
-    fitparams = gamma.fit(dist,floc=0)
-    a,loc,scale = fitparams
-    CNT_params[i,:] = a,loc,scale,skew(dist)
+    a,loc,scale = gamma.fit(dist,floc=0)
+    CNT_params[i,:] = a,loc,scale,kurt(dist)
 for i in range(25):
     print(i)
     dist = MCS_jump_lengths[i]
-    fitparams = gamma.fit(dist,floc=0)
-    a,loc,scale = fitparams
-    MCS_params[i,:] = a,loc,scale,skew(dist)
+    a,loc,scale = gamma.fit(dist,floc=0)
+    MCS_params[i,:] = a,loc,scale,kurt(dist)
 for i in range(20):
     print(i)
     dist = UWS_jump_lengths[i]
-    fitparams = gamma.fit(dist,floc=0)
-    a,loc,scale = fitparams
-    UWS_params[i,:] = a,loc,scale,skew(dist)
+    a,loc,scale = gamma.fit(dist,floc=0)
+    UWS_params[i,:] = a,loc,scale,kurt(dist)
     
 #%% autocorrelaciones por individuo y cuando caen debajo de 0.5
 
@@ -145,9 +141,21 @@ plt.clf()
 plt.suptitle("jump length distributions and gamma fit (loc=0 fixed)")
 plt.subplot(131)
 plt.title("all pooled")
-plt.hist(np.concatenate(CNT_jump_lengths),label="CNT",density=True,alpha=alfa,bins=50,color="tab:blue")
-plt.hist(np.concatenate(MCS_jump_lengths),label="MCS",density=True,alpha=alfa,bins=50,color="tab:orange")
-plt.hist(np.concatenate(UWS_jump_lengths),label="UWS",density=True,alpha=alfa,bins=50,color="tab:green")
+dist = np.concatenate(CNT_jump_lengths)
+print(f"CNT\nmean\tmedian\tstd\tCV\n{dist.mean():.4f}\t{np.median(dist):.4f}\t{dist.std():.4f}\t{dist.std()/dist.mean():.4f}")
+plt.hist(dist,label="CNT",density=True,alpha=alfa,bins=50,color="tab:blue")
+dist = np.concatenate(MCS_jump_lengths)
+print(f"MCS\n{dist.mean():.4f}\t{np.median(dist):.4f}\t{dist.std():.4f}\t{dist.std()/dist.mean():.4f}")
+plt.hist(dist,label="MCS",density=True,alpha=alfa,bins=50,color="tab:orange")
+dist = np.concatenate(UWS_jump_lengths)
+print(f"UWS\n{dist.mean():.4f}\t{np.median(dist):.4f}\t{dist.std():.4f}\t{dist.std()/dist.mean():.4f}")
+plt.hist(dist,label="UWS",density=True,alpha=alfa,bins=50,color="tab:green")
+
+dist = np.abs(np.random.normal(loc=0,scale=1000,size=4000))
+print(f"NORMAL\n{dist.mean():.4f}\t{np.median(dist):.4f}\t{dist.std():.4f}\t{dist.std()/dist.mean():.4f}")
+plt.hist(dist,label="NORMAL",density=True,alpha=0.3,bins=50,color="black")
+
+
 plt.legend()
 plt.xlim(xmin,xmax)
 
@@ -155,7 +163,7 @@ plt.xlim(xmin,xmax)
 plt.subplot(332)
 plt.title("CNT individuals, N=13")
 for i in range(13):
-    # print(i)
+    # print(i)4
     dist = CNT_jump_lengths[i]
     a,loc,scale,_ = CNT_params[i]
     pdf = gamma.pdf(xaxis,a=a,loc=loc,scale=scale)
@@ -189,31 +197,59 @@ plt.xlim(xmin,xmax)
 plt.subplot(433)
 plt.title("a ('shape')")
 sns.swarmplot([sta[:,0] for sta in params],color="black")
-sns.boxplot([sta[:,0] for sta in params])
+# sns.boxplot([sta[:,0] for sta in params])
 plt.xticks([0,1,2],["CNT","MCS","UWS"])
 plt.subplot(336)
 
 plt.subplot(436)
 plt.title("scale")
 sns.swarmplot([sta[:,2] for sta in params],color="black")
-sns.boxplot([sta[:,2] for sta in params])
+# sns.boxplot([sta[:,2] for sta in params])
 plt.xticks([0,1,2],["CNT","MCS","UWS"])
 
 plt.subplot(439)
-plt.title("theoretical skewness"+r"  $(2/\sqrt{a})$")
-sns.swarmplot([1/np.sqrt(sta[:,0]) for sta in params],color="black")
-sns.boxplot([1/np.sqrt(sta[:,0]) for sta in params])
+plt.title("theoretical kurtosis"+r"  $(2/a)$")
+sns.swarmplot([6/sta[:,0] for sta in params],color="black")
+# sns.boxplot([6/sta[:,0] for sta in params])
 plt.xticks([0,1,2],["CNT","MCS","UWS"])
 
 plt.subplot(4,3,12)
-plt.title("empirical skewness")
+plt.title("empirical kurtosis")
 sns.swarmplot([sta[:,3] for sta in params],color="black")
-sns.boxplot([sta[:,3] for sta in params])
+# plt.yticks([])
+# sns.boxplot([sta[:,3] for sta in params])
 plt.xticks([0,1,2],["CNT","MCS","UWS"])
 
 plt.tight_layout()
 plt.show()
 
+
+#%%kurtosis analysis
+CNT_kurt = 6/params[0][:,0]
+MCS_kurt = 6/params[1][:,0]
+UWS_kurt = 6/params[2][:,0]
+
+##T test
+p1 = ttest_ind(CNT_kurt,MCS_kurt)[1]
+p2 = ttest_ind(CNT_kurt,UWS_kurt)[1]
+p3 = ttest_ind(MCS_kurt,UWS_kurt)[1]
+p1,p2,p3=corrected = multipletests((p1,p2,p3),method="fdr_bh")[1]
+print(f"p-val (CNT,MCS),(CNT,UWS),(MCS,UWS): {corrected}")
+
+##D de cohen
+d1 = utils.cohen_d(CNT_kurt,MCS_kurt)
+d2 = utils.cohen_d(CNT_kurt,UWS_kurt)
+d3 = utils.cohen_d(MCS_kurt,UWS_kurt)
+print(f"cohen-d (CNT,MCS),(CNT,UWS),(MCS,UWS): {(d1,d2,d3)}")
+
+plt.figure(4)
+plt.clf()
+plt.subplot(111)
+plt.title("theoretical kurtosis"+r"  $(6/a)$")
+sns.swarmplot([CNT_kurt,MCS_kurt,UWS_kurt],color="black")
+sns.boxplot([CNT_kurt,MCS_kurt,UWS_kurt])
+plt.xticks([0,1,2],["CNT","MCS","UWS"])
+plt.show()
 
 
 

@@ -19,7 +19,7 @@ savefolder = "chewed_data/"
 states = ["CNT","MCS","UWS"] #wake, deep anesthesia, recovery
 loaddata= np.load("../chewed_data/ALL_sub_phasecoherence_concatenated_filt.npy")
 
-
+# excludes = [[],[13,17],[12]] ##nota: exclui segun FCs con media outlier
 lenis = {}
 lenis["CNT"] = [192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192, 192]
 lenis["MCS"] = [192, 192, 192, 192, 192, 175, 175, 175, 175, 175, 175, 175, 175, 175, 175, 175, 175, 175, 175, 175, 175, 195, 195, 195, 195]
@@ -244,12 +244,31 @@ print(f"cohen-d (CNT,MCS),(CNT,UWS),(MCS,UWS): {(d1,d2,d3)}")
 
 plt.figure(4)
 plt.clf()
-plt.subplot(111)
+plt.subplot(221)
 plt.title("theoretical kurtosis"+r"  $(6/a)$")
 sns.swarmplot([CNT_kurt,MCS_kurt,UWS_kurt],color="black")
 sns.boxplot([CNT_kurt,MCS_kurt,UWS_kurt])
 plt.xticks([0,1,2],["CNT","MCS","UWS"])
+
+plt.subplot(224)
+plt.title("shape and scale parameters")
+plt.scatter(params[0][:,0],params[0][:,2],label="CNT")
+plt.scatter(params[1][:,0],params[1][:,2],label="MCS")
+plt.scatter(params[2][:,0],params[2][:,2],label="UWS")
+plt.xlabel("shape");plt.ylabel("scale")
+
 plt.show()
 
+#%% analyze outliers of MCS jump kurtosis
+
+out_shapes = np.argsort((6/params[1][:,0]))[-4:] ## extreme shapes
+outvals_shapes = np.sort((6/params[1][:,0]))[-4:]
+
+out_scales = np.argsort((params[1][:,2]))[-4:] ## extreme scales
+outvals_scales = np.sort((params[1][:,2]))[-4:]
+###here the outliers are [0 4 6 18]
+###########NOTE THAT THERE ARE SOME EXCLUDED
+print(out_shapes,outvals_shapes)
+print(out_scales,outvals_scales)
 
 

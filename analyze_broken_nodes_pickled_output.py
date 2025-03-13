@@ -28,29 +28,29 @@ la idea es que obtengo un cerebro ya dañado. Y qué pasa si luego de esto mismo
 Obviamente obtendré un mejor ajuste a 
 """
     
-with open('output/broken_node_sim_analysis_50seeds.pickle', 'rb') as f:
+with open('../fastDMF/output/broken_node_sim_analysis_50seeds.pickle', 'rb') as f:
     data = pickle.load(f)
     
 #%%
-with open('empirical_truth/DoC_mean_FCs.pickle', 'rb') as f:
+with open('../fastDMF/empirical_truth/DoC_mean_FCs.pickle', 'rb') as f:
     emp_fcs = pickle.load(f)
-with open('empirical_truth/jump_distributions_dict_filt_PCA15.pickle', 'rb') as f:
+with open('../fastDMF/empirical_truth/jump_distributions_dict_filt_PCA15.pickle', 'rb') as f:
     jump_dists_15 = pickle.load(f)
-with open('empirical_truth/jump_distributions_dict_filt_ALLDIM.pickle', 'rb') as f:
+with open('../fastDMF/empirical_truth/jump_distributions_dict_filt_ALLDIM.pickle', 'rb') as f:
     jump_dists_all = pickle.load(f)
-with open('output/optimal_fits_Gsweep_50seeds.pickle', 'rb') as f:
+with open('../fastDMF/output/optimal_fits_Gsweep_50seeds.pickle', 'rb') as f:
     fitdic = pickle.load(f)
     
-with open('output/out_in_wards_entries_100reps_2mayo_0percentile.pickle', 'rb') as f:
+with open('../fastDMF/output/out_in_wards_entries_100reps_2mayo_0percentile.pickle', 'rb') as f:
     broken_dic = pickle.load(f)
 
 
-with open('empirical_truth/modules_degrees_symmetrized45-45.pickle', 'rb') as f:
+with open('../fastDMF/empirical_truth/modules_degrees_symmetrized45-45.pickle', 'rb') as f:
     degrees_dic = pickle.load(f)
     
-emp_occs_15 = np.loadtxt('empirical_truth/occupations_3clusters_15dim_euclidean.txt')#,allow_pickle=True)
+emp_occs_15 = np.loadtxt('../fastDMF/empirical_truth/occupations_3clusters_15dim_euclidean.txt')#,allow_pickle=True)
 
-emp_occs_all = np.loadtxt('empirical_truth/occupations_3clusters_alldim_euclidean.txt')
+emp_occs_all = np.loadtxt('../fastDMF/empirical_truth/occupations_3clusters_alldim_euclidean.txt')
 # emp_occs_all = np.loadtxt('empirical_truth/occupations_3clusters_alldim_euclidean.txt')
 
 AALlabels = list(pd.read_csv("../sorted_AAL_labels.txt")["label"].values) #nombre de las areas
@@ -95,14 +95,8 @@ for seed in range(50):
         means_jumps_low[i,seed] = np.mean(jumps_low)
         stds_jumps_low[i,seed] = np.std(jumps_low)
         
-        # ks_jumps_fits_high[i,:,seed] = [ks(jumps_high,jump_dists_all[s])[0] for s in states]
-        # means_jumps_high[i,seed] = np.mean(jumps_high)
-        # stds_jumps_high[i,seed] = np.std(jumps_high)
-        
         euc_fits[i,:,seed] = eucs
         corr_fits[i,:,seed] = corrs
-        # if G ==2.5:
-        #     opt_CNT_dist[:,seed] = jumps_low
         
         
         # ks_occsCNT,ks_occsMCS,ks_occsUWS = [ks(counts_low,emp_occs_15[i])[0] for i in range(len(states))]

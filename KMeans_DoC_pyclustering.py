@@ -418,6 +418,7 @@ plt.show()
 alfa = 0.8
 plt.figure(5,figsize=(5,3))
 plt.clf()
+
 plt.subplot2grid((3,2),(0,1),rowspan=3)
 plt.scatter(arrayCNT[:,0],arrayCNT[:,1],label="CNT",color=colors[0],alpha=alfa)
 lin = LinearRegression()
@@ -462,8 +463,22 @@ plt.xticks([0,1,2],["c1","c2","c3"],fontsize=13)
 plt.yticks([0,0.4,0.8],[0,0.4,0.8],fontsize=13)
 
 plt.tight_layout()
-plt.savefig("../../ICMNS2024_Dublin/occupancies_clusters",dpi=300)
+# plt.savefig("../../ICMNS2024_Dublin/occupancies_clusters",dpi=300)
 plt.show()
+
+#%% find outliers of the MCS state
+
+valstoutes = arrayMCS
+
+vals1 = arrayMCS[:25,1]
+print("max MCS c1 occ:", vals1.argsort()[-4:])
+
+vals2 = arrayMCS[50:,1]
+print("min MCS c3 occ:", vals2.argsort()[:4])
+##indices of highest MCS occupancy of first cluster = [6 4 0 17]
+##indices of lowest MCS occupancy of last cluster = [17 4 6 0]
+####COINCIDEN!!!!!!!!!!!!!!!!!
+
 
 #%%
 
@@ -510,7 +525,7 @@ for i in range(n_clusters):
 
 plt.figure(6)
 plt.clf()
-plt.suptitle(f"saltos comenzando en cada cluster, state={chosen}, ndim = {n_components}")
+# plt.suptitle(f"saltos comenzando en cada cluster, state={chosen}, ndim = {n_components}")
 plt.subplot(221)
 sns.violinplot(observables_df,y="jump",x="cluster_label")
 

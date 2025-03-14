@@ -32,14 +32,14 @@ def entropy_of_gamma(shape,scale):
     return entropy
     
 
-with open(f'output/broken_simulation_analysis_INNER_50seeds.pickle', 'rb') as f:
+with open(f'../fastDMF/output/broken_simulation_analysis_INNER_50seeds.pickle', 'rb') as f:
     data_inner = pickle.load(f)
-with open(f'output/broken_simulation_analysis_OUTER_50seeds.pickle', 'rb') as f:
+with open(f'../fastDMF/output/broken_simulation_analysis_OUTER_50seeds.pickle', 'rb') as f:
     data_outer = pickle.load(f)
-with open('output/out_in_wards_entries_100reps_2mayo_0percentile.pickle', 'rb') as f:
+with open('../fastDMF/output/out_in_wards_entries_100reps_2mayo_0percentile.pickle', 'rb') as f:
     broken_dic = pickle.load(f)
 
-with open('output/optimal_fits_Gsweep_50seeds.pickle', 'rb') as f:
+with open('../fastDMF/output/optimal_fits_Gsweep_50seeds.pickle', 'rb') as f:
     fitdic = pickle.load(f)
 # with open('output/struct_nonzero_sorted_by_DELAY_2mayo_0percentile.pickle', 'rb') as f:
 #     broken_dic_delays = pickle.load(f)
@@ -51,22 +51,22 @@ struct = np.loadtxt("../structural_Deco_AAL.txt")
 
 # del f
 #%%
-with open('empirical_truth/DoC_mean_FCs.pickle', 'rb') as f:
+with open('../fastDMF/empirical_truth/DoC_mean_FCs.pickle', 'rb') as f:
     emp_fcs = pickle.load(f)
-with open('empirical_truth/jump_distributions_dict_filt_PCA15.pickle', 'rb') as f:
+with open('../fastDMF/empirical_truth/jump_distributions_dict_filt_PCA15.pickle', 'rb') as f:
     jump_dists_15 = pickle.load(f)
-with open('empirical_truth/jump_distributions_dict_filt_ALLDIM.pickle', 'rb') as f:
+with open('../fastDMF/empirical_truth/jump_distributions_dict_filt_ALLDIM.pickle', 'rb') as f:
     jump_dists_all = pickle.load(f)
 del f
 
-emp_occs_15 = np.loadtxt('empirical_truth/occupations_3clusters_alldim_euclidean.txt')#,alinner_pickle=True
+emp_occs_15 = np.loadtxt('../fastDMF/empirical_truth/occupations_3clusters_alldim_euclidean.txt')#,alinner_pickle=True
 # emp_occs_all = np.loadtxt('empirical_truth/occupations_3clusters_alldim_euclidean.txt')
 
 
 #%%
 names = ["all_by_st","outer_by_st","within_by_st","all_rand_1","all_rand_2","all_by_dist"]
 
-with open("output/broken_instances_st_wheres_24mayo.pickle","rb") as f:
+with open("../fastDMF/output/broken_instances_st_wheres_24mayo.pickle","rb") as f:
     broken_instances = pickle.load(f)
 
 states = ["CNT","MCS","UWS"]
@@ -96,15 +96,15 @@ for n,name in enumerate(names):
     sts = broken_instances[name][0]
     sts_dic[name] = sts
     if name == "all_by_dist":
-        with open(f'output/broken_conn_ORDER_{name}_analysis.pickle', 'rb') as f:
+        with open(f'../fastDMF/output/broken_conn_ORDER_{name}_analysis.pickle', 'rb') as f:
             broken_dic = pickle.load(f)
-        with open(f'output/broken_conn_ORDER_{name}_analysis_from_654.pickle', 'rb') as f:
+        with open(f'../fastDMF/output/broken_conn_ORDER_{name}_analysis_from_654.pickle', 'rb') as f:
             broken_dic2 = pickle.load(f)
         broken_dic.update(broken_dic2) 
         print(len(broken_dic))
         these_IDs = IDs_dist
     else:
-        with open(f'output/broken_conn_ORDER_{name}_analysis.pickle', 'rb') as f:
+        with open(f'../fastDMF/output/broken_conn_ORDER_{name}_analysis.pickle', 'rb') as f:
             broken_dic = pickle.load(f)
         these_IDs = IDs
     print("processing")

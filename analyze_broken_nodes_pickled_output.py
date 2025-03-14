@@ -40,6 +40,7 @@ with open('../fastDMF/empirical_truth/jump_distributions_dict_filt_ALLDIM.pickle
     jump_dists_all = pickle.load(f)
 with open('../fastDMF/output/optimal_fits_Gsweep_50seeds.pickle', 'rb') as f:
     fitdic = pickle.load(f)
+KL_at_optimal_CNT = [0.026417709157886354, 0.1603670411573415, 0.4496975412541529]
     
 with open('../fastDMF/output/out_in_wards_entries_100reps_2mayo_0percentile.pickle', 'rb') as f:
     broken_dic = pickle.load(f)
@@ -207,17 +208,20 @@ nodeo_high = [nodes[np.argmin(fits_occs_high[:,i])] for i in range(3)]
 
 x = nodes
 
+basals = fitdic["KL_occs_high"][1]
+
 plt.figure(3)
 plt.clf()
 plt.suptitle("KL distance empirical-simulated. LOWER IS BETTER")
 for s,state in enumerate(states):
-    basal = fitdic["KL_occs_high"][1][s]
     plt.subplot(3,1,s+1)
     plt.bar(nodes,fits_occs_low[:,s],label=state,alpha=alfa)
-    plt.legend()
-    plt.hlines(basal,x.min(),x.max(),color="red",linestyle="dashed",label=f"plain fit {state}")
+    plt.hlines(basals[s],x.min(),x.max(),color="red",linestyle="dashed",label=f"base at {state} optimal")
+    # if s>0:
+    plt.hlines(KL_at_optimal_CNT[s],x.min(),x.max(),color="blue",linestyle="dashed",label=f"base at CNT optimal")
     if s ==2:
         plt.xticks(range(90),AALlabels,rotation=90)
+    plt.legend()
 plt.tight_layout()
 plt.show()
 #%%

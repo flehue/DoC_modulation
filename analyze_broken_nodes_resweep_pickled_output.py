@@ -23,6 +23,9 @@ Obviamente obtendré un mejor ajuste a
 with open('../fastDMF/output/broken_nodes_resweep_analysis_seeds0-19.pickle', 'rb') as f:
     data = pickle.load(f)
     
+with open('../fastDMF/output/optimal_fits_Gsweep_50seeds.pickle', 'rb') as f:
+    untouched_data = pickle.load(f)
+    
     
 #%%
 with open('../fastDMF/empirical_truth/DoC_mean_FCs.pickle', 'rb') as f:
@@ -37,6 +40,8 @@ emp_occs_all = np.loadtxt('../fastDMF/empirical_truth/occupations_3clusters_alld
 AALlabels = list(pd.read_csv("../sorted_AAL_labels.txt")["label"].values) #nombre de las areas
 struct = np.loadtxt("../structural_Deco_AAL.txt")
 
+
+forces = struct.sum(axis=1)
 Clus_num,Clus_size,H_all = HMA.Functional_HP(struct)
 Hin,Hse = HMA.Balance(struct, Clus_num, Clus_size)
 Hin_node,Hse_node = HMA.nodal_measures(struct, Clus_num, Clus_size)
@@ -127,18 +132,59 @@ plt.title("CNT vs MCS")
 plt.scatter(x,y)
 plt.xlabel("CNT");plt.ylabel("MCS")
 
-plt.subplot(335)
+plt.subplot(332)
 x=out_node[:,0]
 y=out_node[:,2]
 plt.title("CNT vs UWS")
 plt.scatter(x,y)
 plt.xlabel("CNT");plt.ylabel("UWS")
 
-plt.subplot(339)
+plt.subplot(333)
 x=out_node[:,1]
 y=out_node[:,2]
 plt.title("MCS vs UWS")
 plt.scatter(x,y)
 plt.xlabel("MCS");plt.ylabel("UWS")
+
+###integration segregation
+plt.subplot(334)
+x = out_node[:,0]
+y = Hin_node
+plt.scatter(x,y)
+plt.xlabel("CNT fit when broken node");plt.ylabel("Hin node")
+
+plt.subplot(335)
+x = out_node[:,1]
+y = Hin_node
+plt.scatter(x,y)
+plt.xlabel("MCS fit when broken node");plt.ylabel("Hin node")
+
+plt.subplot(336)
+x = out_node[:,2]
+y = Hin_node
+plt.scatter(x,y)
+plt.xlabel("UWS fit when broken node");plt.ylabel("Hin node")
+
+###node strength
+plt.subplot(337)
+x = out_node[:,0]
+y = forces
+plt.scatter(x,y)
+plt.xlabel("CNT fit when broken node");plt.ylabel("node_strength")
+
+plt.subplot(338)
+x = out_node[:,1]
+y = forces
+plt.scatter(x,y)
+plt.xlabel("MCS fit when broken node");plt.ylabel("node_strength")
+
+plt.subplot(339)
+x = out_node[:,2]
+y = forces
+plt.scatter(x,y)
+plt.xlabel("UWS fit when broken node");plt.ylabel("node_strength")
+
+
+
 plt.show()
 

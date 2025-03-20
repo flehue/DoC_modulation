@@ -133,15 +133,22 @@ plt.figure(1)
 plt.clf()
 plt.suptitle("KL OCCS")
 for n,name in enumerate(names):
+    
     plt.subplot(3,2,n+1)
     plt.title(name)
     if name =="all_by_dist":
         x = np.cumsum(sts_dic[name][:len(IDs_dist)])/(struct.sum()/2)*100
     else:
         x = np.cumsum(sts_dic[name][:len(IDs)])/(struct.sum()/2)*100
-    plt.plot(x,kl_occs_fits[name].mean(axis=2)[:,0],label="CNT")
-    plt.plot(x,kl_occs_fits[name].mean(axis=2)[:,1],label="MCS")
-    plt.plot(x,kl_occs_fits[name].mean(axis=2)[:,2],label="UWS")
+        
+    yCNT,yMCS,yUWS = [kl_occs_fits[name].mean(axis=2)[:,h] for h in range(3)]
+    xoCNT,xoMCS,xoUWS = [x[cosa.argmin()] for cosa in (yCNT,yMCS,yUWS)]
+    plt.plot(x,yCNT,label="CNT",color="tab:blue")
+    plt.vlines(xoCNT,0,0.2,linestyle="dashed",color="tab:blue")
+    plt.plot(x,yMCS,label="MCS",color="tab:orange")
+    plt.vlines(xoMCS,0,0.2,linestyle="dashed",color="tab:orange")
+    plt.plot(x,yUWS,label="UWS",color="tab:green")
+    plt.vlines(xoUWS,0,0.2,linestyle="dashed",color="tab:green")
     plt.legend()
     plt.xlabel("broken connectivity %")
 plt.tight_layout()
@@ -189,7 +196,7 @@ for s,state in enumerate(states):
         
         plt.plot(x,y,label=name,color=colors[n])
         plt.xlabel("broken connectivity %")
-        # plt.xlim([0,20])
+        plt.xlim([-1,30])
         # plt.ylim([0,0.1])
     plt.hlines(basal,0,100,color="black",linestyle="dashed")
     plt.legend()
@@ -469,7 +476,7 @@ plt.show()
 
 
 
-
+halt
 #%% ajuste KL a las ocupaciones
 """cosas interesantes que mostrar
 *OBSERVABLE: resta de ajuste WAKE y UWS en el optimo, versus las semillas, como en luppi

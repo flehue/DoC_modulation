@@ -67,8 +67,8 @@ corrs /= len(seeds)
 
 klCNT,klMCS,klUWS = [np.array([kl(occs[g,:],emp_occs_all[s]).sum() for g in range(len(Gs))]) for s in range(3)]
 GoCNT,GoMCS,GoUWS = [Gs[np.argmin(a)] for a in (klCNT,klMCS,klUWS)]
+print("kl optima at",GoCNT,GoMCS,GoUWS)
 minCNT,minMCS,minUWS = [np.min(a) for a in (klCNT,klMCS,klUWS)]
-print((GoCNT,GoMCS,GoUWS))
 
 plt.figure(1)
 plt.clf()
@@ -87,7 +87,7 @@ plt.legend()
 ###euclidean to FC
 GoCNT,GoMCS,GoUWS = [Gs[np.argmin(euc[:,s])] for s in range(len(states))]
 minCNT,minMCS,minUWS = [np.min(euc[:,s]) for s in range(len(states))]
-
+print("euclidean optima at",GoCNT,GoMCS,GoUWS)
 plt.subplot(332)
 plt.title("euclidean to empirical FC")
 plt.plot(Gs,euc[:,0],label=f"CNT, Go={GoCNT:.2f}")

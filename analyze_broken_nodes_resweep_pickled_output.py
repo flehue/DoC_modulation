@@ -98,6 +98,9 @@ Go_by_node= np.zeros((len(nodes),len(states),2)) ##one for KL and other for eucl
 kl_node = np.zeros((len(nodes),len(states)))
 euc_node = np.zeros((len(nodes),len(states)))
 
+occ_no_resweep = np.zeros((len(nodes),len(states)))
+G_CNT = 2.48 ##for seeing broken nodes without resweeping
+
 for n,node in enumerate(nodes):
     
     klsCNT = np.array([kl(occs[g,n,:],emp_occs_all[0]).sum() for g in range(len(Gs))])
@@ -123,6 +126,10 @@ for n,node in enumerate(nodes):
     
     if n ==56: #precuneus
         y1,y2,y3 = klsCNT,klsMCS,klsUWS;x=Gs
+        
+    occ_no_resweep[n,0] = klsCNT[Gs == G_CNT]
+    occ_no_resweep[n,1] = klsMCS[Gs == G_CNT]
+    occ_no_resweep[n,2] = klsUWS[Gs == G_CNT]
 
 ##let's test precuneus sweep
 plt.figure(3)
@@ -170,7 +177,7 @@ plt.xticks(range(90),[f"{i}-{AALlabels[i]}" for i in range(90)],rotation=90)
 plt.tight_layout()
 plt.show()
 
-#%%
+#%% what value of G gives you the optimal
 
 plt.figure(4)
 plt.clf()
@@ -191,3 +198,29 @@ plt.xticks(range(90),[f"{i}-{AALlabels[i]}" for i in range(90)],rotation=90)
 
 plt.tight_layout()
 plt.show()
+
+#%% occupancies broken nodes at the optimal of CNT without resweeping 
+
+plt.figure(4)
+plt.clf()
+plt.suptitle("no resweep, just brake")
+
+plt.subplot(311)
+plt.bar(range(90),occ_no_resweep[:,0],label="CNT")
+plt.hlines(base_at_own[0],0,90,linestyle="dashed",color="red",label="opt_at_own")
+plt.xticks([])
+
+plt.subplot(312)
+plt.bar(range(90),occ_no_resweep[:,1],label="MCS")
+plt.hlines(base_at_own[1],0,90,linestyle="dashed",color="red",label="opt_at_own")
+plt.xticks([])
+
+plt.subplot(313)
+plt.bar(range(90),occ_no_resweep[:,2],label="UWS")
+plt.hlines(base_at_own[2],0,90,linestyle="dashed",color="red",label="opt_at_own")
+plt.xticks(range(90),[f"{i}-{AALlabels[i]}" for i in range(90)],rotation=90)
+
+plt.tight_layout()
+plt.show()
+
+

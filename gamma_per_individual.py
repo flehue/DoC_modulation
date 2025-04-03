@@ -104,25 +104,25 @@ UWSsplit = split_data(dataUWS,lenis["UWS"])
 
 ##we save empirical kurtosis 
 
-CNT_params = np.zeros((13,4))
-MCS_params = np.zeros((25,4))
-UWS_params = np.zeros((20,4))
+CNT_params = np.zeros((13,5))
+MCS_params = np.zeros((25,5))
+UWS_params = np.zeros((20,5))
 
 for i in range(13):
     print(i)
     dist = CNT_jump_lengths[i]
     a,loc,scale = gamma.fit(dist,floc=0)
-    CNT_params[i,:] = a,loc,scale,kurt(dist)
+    CNT_params[i,:] = a,loc,scale,kurt(dist),skew(dist)
 for i in range(25):
     print(i)
     dist = MCS_jump_lengths[i]
     a,loc,scale = gamma.fit(dist,floc=0)
-    MCS_params[i,:] = a,loc,scale,kurt(dist)
+    MCS_params[i,:] = a,loc,scale,kurt(dist),skew(dist)
 for i in range(20):
     print(i)
     dist = UWS_jump_lengths[i]
     a,loc,scale = gamma.fit(dist,floc=0)
-    UWS_params[i,:] = a,loc,scale,kurt(dist)
+    UWS_params[i,:] = a,loc,scale,kurt(dist),skew(dist)
     
 #%% autocorrelaciones por individuo y cuando caen debajo de 0.5
 
@@ -165,7 +165,7 @@ plt.title("CNT individuals, N=13")
 for i in range(13):
     # print(i)4
     dist = CNT_jump_lengths[i]
-    a,loc,scale,_ = CNT_params[i]
+    a,loc,scale,_,_ = CNT_params[i]
     pdf = gamma.pdf(xaxis,a=a,loc=loc,scale=scale)
     plt.plot(xaxis,pdf,color="black")
     plt.hist(dist,label=i,density=True,alpha=alfa,bins=20)
@@ -176,7 +176,7 @@ plt.title("MCS individuals, N=25")
 for i in range(25):
     # print(i)
     dist = MCS_jump_lengths[i]
-    a,loc,scale,_ = MCS_params[i]
+    a,loc,scale,_,_ = MCS_params[i]
     pdf = gamma.pdf(xaxis,a=a,loc=loc,scale=scale)
     plt.plot(xaxis,pdf,color="black")
     plt.hist(dist,label=i,density=True,alpha=alfa,bins=20)
@@ -187,7 +187,7 @@ plt.title("UWS individuals, N=20")
 for i in range(20):
     # print(i)
     dist = UWS_jump_lengths[i]
-    a,loc,scale,_ = UWS_params[i]
+    a,loc,scale,_,_ = UWS_params[i]
     pdf = gamma.pdf(xaxis,a=a,loc=loc,scale=scale)
     plt.plot(xaxis,pdf,color="black")
     plt.hist(dist,label=i,density=True,alpha=alfa,bins=20)
@@ -197,37 +197,42 @@ plt.xlim(xmin,xmax)
 plt.subplot(433)
 plt.title("a ('shape')")
 sns.swarmplot([sta[:,0] for sta in params],color="black")
-# sns.boxplot([sta[:,0] for sta in params])
+sns.boxplot([sta[:,0] for sta in params])
 plt.xticks([0,1,2],["CNT","MCS","UWS"])
 plt.subplot(336)
 
 plt.subplot(436)
 plt.title("scale")
 sns.swarmplot([sta[:,2] for sta in params],color="black")
-# sns.boxplot([sta[:,2] for sta in params])
+sns.boxplot([sta[:,2] for sta in params])
 plt.xticks([0,1,2],["CNT","MCS","UWS"])
 
 plt.subplot(439)
 plt.title("theoretical kurtosis"+r"  $(2/a)$")
 sns.swarmplot([6/sta[:,0] for sta in params],color="black")
-# sns.boxplot([6/sta[:,0] for sta in params])
+sns.boxplot([6/sta[:,0] for sta in params])
 plt.xticks([0,1,2],["CNT","MCS","UWS"])
 
 plt.subplot(4,3,12)
 plt.title("empirical kurtosis")
 sns.swarmplot([sta[:,3] for sta in params],color="black")
 # plt.yticks([])
-# sns.boxplot([sta[:,3] for sta in params])
+sns.boxplot([sta[:,3] for sta in params])
 plt.xticks([0,1,2],["CNT","MCS","UWS"])
 
 plt.tight_layout()
 plt.show()
 
 
-#%%kurtosis analysis
+#%%kurtosis analysis and visualize
 CNT_kurt = 6/params[0][:,0]
 MCS_kurt = 6/params[1][:,0]
 UWS_kurt = 6/params[2][:,0]
+
+CNT_skew = 2/params[0][:,0]**.5
+MCS_skew = 2/params[1][:,0]**.5
+UWS_skew = 2/params[2][:,0]**.5
+
 
 ##T test
 p1 = ttest_ind(CNT_kurt,MCS_kurt)[1]
@@ -244,13 +249,34 @@ print(f"cohen-d (CNT,MCS),(CNT,UWS),(MCS,UWS): {(d1,d2,d3)}")
 
 plt.figure(4)
 plt.clf()
-plt.subplot(221)
+###########kurtosis
+plt.subplot(331)
+plt.title("empirical kurtosis"+r"  $(6/a)$")
+sns.swarmplot([sta[:,3] for sta in params],color="black")
+sns.boxplot([sta[:,3] for sta in params])
+plt.xticks([0,1,2],["CNT","MCS","UWS"])
+
+plt.subplot(332)
 plt.title("theoretical kurtosis"+r"  $(6/a)$")
 sns.swarmplot([CNT_kurt,MCS_kurt,UWS_kurt],color="black")
 sns.boxplot([CNT_kurt,MCS_kurt,UWS_kurt])
 plt.xticks([0,1,2],["CNT","MCS","UWS"])
 
-plt.subplot(224)
+
+###########skewness
+plt.subplot(334)
+plt.title("empirical skewness"+r"  $(6/a)$")
+sns.swarmplot([sta[:,4] for sta in params],color="black")
+sns.boxplot([sta[:,4] for sta in params])
+plt.xticks([0,1,2],["CNT","MCS","UWS"])
+
+plt.subplot(335)
+plt.title("theoretical skewness"+r"  $(6/a)$")
+sns.swarmplot([CNT_skew,MCS_skew,UWS_skew],color="black")
+sns.boxplot([CNT_skew,MCS_skew,UWS_skew])
+plt.xticks([0,1,2],["CNT","MCS","UWS"])
+
+plt.subplot(339)
 plt.title("shape and scale parameters")
 plt.scatter(params[0][:,0],params[0][:,2],label="CNT")
 plt.scatter(params[1][:,0],params[1][:,2],label="MCS")

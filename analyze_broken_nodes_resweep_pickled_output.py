@@ -46,12 +46,13 @@ emp_occs_all = np.loadtxt('../fastDMF/empirical_truth/occupations_3clusters_alld
 AALlabels = list(pd.read_csv("../sorted_AAL_labels.txt")["label"].values) #nombre de las areas
 struct = np.loadtxt("../structural_Deco_AAL.txt")
 
-
+#%%network stuff
 forces = struct.sum(axis=1)
 Clus_num,Clus_size,H_all = HMA.Functional_HP(struct)
 Hin,Hse = HMA.Balance(struct, Clus_num, Clus_size)
 Hin_node,Hse_node = HMA.nodal_measures(struct, Clus_num, Clus_size)
 
+betweenness_cent = bct.centrality.betweenness_wei(struct)
 #%% extract parameter and seed values
 
 
@@ -245,26 +246,7 @@ suboccs = occs[Gs==G_CNT_kl,:,:].reshape(90,3)
 
 plt.figure(5)
 plt.clf()
-plt.subplot(311)
-plt.title("occupations when broken node, fixed G at optimal CNT")
-bottom = np.zeros(90)
-for c in range(3): ##number of clusters
-    toplot = suboccs[:,c]
-    plt.bar(range(90),toplot,bottom=bottom,label=f"c{c}")
-    bottom+=toplot
-    
-plt.subplot(312)
-plt.title("occupations when broken node, reswept")
-bottom = np.zeros(90)
-for c in range(3): ##number of clusters
-    toplot = suboccs[:,c]
-    plt.bar(range(90),toplot,bottom=bottom,label=f"c{c}")
-    bottom+=toplot
-plt.xticks(range(90),[f"{i}-{AALlabels[i]}" for i in range(90)],rotation=90)
-plt.ylabel("occupation")
-# plt.legend()
-
-plt.subplot(338)
+plt.subplot(232)
 plt.title("empirical occupations")
 bottom = np.zeros(3)
 for c in range(3): ##number of states:
@@ -272,45 +254,69 @@ for c in range(3): ##number of states:
     plt.bar(range(3),toplot,bottom=bottom,label=f"c{c}")
     bottom+=toplot
 plt.xticks(range(3),states)
+
+    
+plt.subplot(212)
+plt.title("occupations when broken node, fixed G at optimal CNT")
+bottom = np.zeros(90)
+for c in range(3): ##number of clusters
+    toplot = suboccs[:,c]
+    plt.bar(range(90),toplot,bottom=bottom,label=f"c{c}")
+    bottom+=toplot
+# plt.legend()
+
+# plt.subplot(313)
+# plt.title("occupations when broken node, reswept (CNT own optimal)")
+# bottom = np.zeros(90)
+# for c in range(3): ##number of clusters
+#     toplot = occs_optUWS_resweep[:,c]
+#     plt.bar(range(90),toplot,bottom=bottom,label=f"c{c}")
+#     bottom+=toplot
+plt.xticks(range(90),[f"{i}-{AALlabels[i]}" for i in range(90)],rotation=90)
+plt.ylabel("occupation")
+
+
 plt.tight_layout()
 plt.show()
 
 #%%occupations of untouched broken vs HMA shit
 plt.figure(6)
 plt.clf()
-plt.suptitle("REMEMBER WE ARE BREAKING THINGS AND LOWER IS BETTER")
+plt.suptitle("NO RESWEEP\nremember we are breaking things and lower is better")
 #CNT
 plt.subplot(431)
-plt.title("KL")
+plt.title("CNT")
 plt.scatter(Hin_node,kl_no_resweep[:,0],alpha=0.3)
-plt.ylabel("fit to CNT when broken node")
+plt.ylabel("KL broken node")
 plt.xlabel("integration of node")
 
 plt.subplot(434)
 plt.scatter(forces,kl_no_resweep[:,0],alpha=0.3)
-plt.ylabel("fit to CNT when broken node")
+plt.ylabel("KL broken node")
 plt.xlabel("node strength")
 
 #MCS
 plt.subplot(432)
+plt.title("MCS")
 plt.scatter(Hin_node,kl_no_resweep[:,1],alpha=0.3)
-plt.ylabel("fit to MCS when broken node")
+plt.ylabel("KL broken node")
 plt.xlabel("integration of node")
 
 plt.subplot(435)
 plt.scatter(forces,kl_no_resweep[:,1],alpha=0.3)
-plt.ylabel("fit to MCS when broken node")
+plt.ylabel("KL broken node")
 plt.xlabel("node strength")
 
 #UWS
 plt.subplot(433)
+plt.title("UWS")
 plt.scatter(Hin_node,kl_no_resweep[:,2],alpha=0.3)
-plt.ylabel("fit to UWS when broken node")
+plt.ylabel("KL broken node")
 plt.xlabel("integration of node")
 
 plt.subplot(436)
 plt.scatter(forces,kl_no_resweep[:,2],alpha=0.3)
-plt.ylabel("fit to UWS when broken node")
+plt.ylabel("KL broken node")
 plt.xlabel("node strength")
 
 
@@ -318,34 +324,34 @@ plt.xlabel("node strength")
 plt.subplot(437)
 plt.title("euclidian")
 plt.scatter(Hin_node,euc_no_resweep[:,0],alpha=0.3)
-plt.ylabel("fit to CNT when broken node")
+plt.ylabel("EUC to CNT when broken node")
 plt.xlabel("integration of node")
 
 plt.subplot(4,3,10)
 plt.scatter(forces,euc_no_resweep[:,0],alpha=0.3)
-plt.ylabel("fit to CNT when broken node")
+plt.ylabel("EUC to CNT when broken node")
 plt.xlabel("node strength")
 
 #MCS
 plt.subplot(4,3,8)
 plt.scatter(Hin_node,euc_no_resweep[:,1],alpha=0.3)
-plt.ylabel("fit to MCS when broken node")
+plt.ylabel("EUC to MCS when broken node")
 plt.xlabel("integration of node")
 
 plt.subplot(4,3,11)
 plt.scatter(forces,euc_no_resweep[:,1],alpha=0.3)
-plt.ylabel("fit to MCS when broken node")
+plt.ylabel("EUC to MCS when broken node")
 plt.xlabel("node strength")
 
 #UWS
 plt.subplot(4,3,9)
 plt.scatter(Hin_node,euc_no_resweep[:,2],alpha=0.3)
-plt.ylabel("fit to UWS when broken node")
+plt.ylabel("EUC to UWS when broken node")
 plt.xlabel("integration of node")
 
 plt.subplot(4,3,12)
 plt.scatter(forces,euc_no_resweep[:,2],alpha=0.3)
-plt.ylabel("fit to UWS when broken node")
+plt.ylabel("EUC to UWS when broken node")
 plt.xlabel("node strength")
 
 plt.tight_layout()
@@ -355,12 +361,12 @@ plt.show()
 
 plt.figure(7)
 plt.clf()
-plt.suptitle("REMEMBER WE ARE BREAKING THINGS AND LOWER IS BETTER")
+plt.suptitle("resweep\nremember we are breaking things and lower is better")
 #CNT
 plt.subplot(431)
-plt.title("no resweep")
+plt.title("CNT")
 plt.scatter(Hin_node,kl_node[:,0],alpha=0.3)
-plt.ylabel("fit to CNT when broken node")
+plt.ylabel("fit  broken node")
 plt.xlabel("integration of node")
 
 plt.subplot(434)
@@ -370,8 +376,9 @@ plt.xlabel("node strength")
 
 #MCS
 plt.subplot(432)
+plt.title("MCS")
 plt.scatter(Hin_node,kl_node[:,1],alpha=0.3)
-plt.ylabel("fit to MCS when broken node")
+plt.ylabel("fit  broken node")
 plt.xlabel("integration of node")
 
 plt.subplot(435)
@@ -381,8 +388,9 @@ plt.xlabel("node strength")
 
 #UWS
 plt.subplot(433)
+plt.title("UWS")
 plt.scatter(Hin_node,kl_node[:,2],alpha=0.3)
-plt.ylabel("fit to UWS when broken node")
+plt.ylabel("fit broken node")
 plt.xlabel("integration of node")
 
 plt.subplot(436)
@@ -390,6 +398,62 @@ plt.scatter(forces,kl_node[:,2],alpha=0.3)
 plt.ylabel("fit to UWS when broken node")
 plt.xlabel("node strength")
 
+#################EUCLIDEAN
+plt.subplot(437)
+plt.title("euclidian")
+plt.scatter(Hin_node,euc_node[:,0],alpha=0.3)
+plt.ylabel("EUC to CNT when broken node")
+plt.xlabel("integration of node")
+
+plt.subplot(4,3,10)
+plt.scatter(forces,euc_node[:,0],alpha=0.3)
+plt.ylabel("EUC to CNT when broken node")
+plt.xlabel("node strength")
+
+#MCS
+plt.subplot(4,3,8)
+plt.scatter(Hin_node,euc_node[:,1],alpha=0.3)
+plt.ylabel("EUC to MCS when broken node")
+plt.xlabel("integration of node")
+
+plt.subplot(4,3,11)
+plt.scatter(forces,euc_node[:,1],alpha=0.3)
+plt.ylabel("EUC to MCS when broken node")
+plt.xlabel("node strength")
+
+#UWS
+plt.subplot(4,3,9)
+plt.scatter(Hin_node,euc_node[:,2],alpha=0.3)
+plt.ylabel("EUC to UWS when broken node")
+plt.xlabel("integration of node")
+
+plt.subplot(4,3,12)
+plt.scatter(forces,euc_node[:,2],alpha=0.3)
+plt.ylabel("EUC to UWS when broken node")
+plt.xlabel("node strength")
+
+
 
 plt.tight_layout()
 plt.show()
+
+#%%correlacionar euclideana y KL
+
+plt.figure(9)
+plt.clf()
+plt.subplot(331)
+plt.title("CNT, no resweep")
+plt.scatter(euc_no_resweep[:,0],kl_no_resweep[:,0],alpha=0.3)
+plt.xlabel("euclidean fit when broken")
+plt.ylabel("KL fit when broken")
+
+plt.subplot(332)
+plt.title("CNT, resweep")
+plt.scatter(euc_node[:,0],kl_node[:,0],alpha=0.3)
+plt.xlabel("euclidean fit when broken")
+plt.ylabel("KL fit when broken")
+
+
+
+plt.show()
+

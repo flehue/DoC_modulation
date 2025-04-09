@@ -15,7 +15,7 @@ from numba import njit
 hilbert = signal.hilbert
 
 
-# a,b = signal.bessel(2,[2 * 0.01 * 2, 2 * 0.1 * 2], btype = 'bandpass')
+a,b = signal.bessel(2,[2 * 0.01 * 2, 2 * 0.1 * 2], btype = 'bandpass')
 lower = np.tril_indices(90,k=-1)
 
 def cohen_d(x,y): ##diferencia entre dos distribuciones en terminos de tamaño de efecto

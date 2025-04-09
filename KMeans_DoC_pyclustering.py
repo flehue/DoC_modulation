@@ -14,7 +14,7 @@ from sklearn.decomposition import PCA
 from pyclustering.cluster.kmeans import kmeans
 from pyclustering.utils.metric import distance_metric
 from pyclustering.cluster.center_initializer import random_center_initializer
-import pickle
+# import pickle
 from scipy.special import rel_entr as kl
 from scipy.stats import entropy
 

@@ -7,8 +7,8 @@ Created on Wed Mar 20 12:05:44 2024
 
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA
-from scipy.stats import gamma,skew,ttest_ind,kurtosis as kurt
+from scipy.stats import weibull_min as weibull,skew,ttest_ind,kurtosis as kurt,kstest
+from scipy.special import gamma as gf
 from statsmodels.stats.multitest import multipletests
 import utils
 import seaborn as sns
@@ -53,6 +53,21 @@ def list_of_jump_lengths(data,lennys,full=False,split=False):
         return jump_lengths, jump_spatial
     else:
         return jump_lengths
+    
+    
+def weibull_skewness(k):
+    if k <= 0:
+        raise ValueError("Shape parameter k must be positive.")
+
+    mu1 = gf(1 + 1/k)
+    mu2 = gf(1 + 2/k)
+    mu3 = gf(1 + 3/k)
+
+    numerator = mu3 - 3 * mu1 * mu2 + 2 * mu1**3
+    denominator = (mu2 - mu1**2)**1.5
+
+    skewness = numerator / denominator
+    return skewness
 #%% extraer largos de salto por individuos
 CNT_jump_lengths,jumpsCNT = list_of_jump_lengths(dataCNT, lenis["CNT"],full=True,split=True)
 
@@ -60,202 +75,296 @@ MCS_jump_lengths,jumpsMCS = list_of_jump_lengths(dataMCS, lenis["MCS"],full=True
 
 UWS_jump_lengths,jumpsUWS = list_of_jump_lengths(dataUWS, lenis["UWS"],full=True,split=True)
 
-CNTsplit = split_data(dataCNT,lenis["CNT"])
-MCSsplit = split_data(dataMCS,lenis["MCS"])
-UWSsplit = split_data(dataUWS,lenis["UWS"])
+# CNTsplit = split_data(dataCNT,lenis["CNT"])
+# MCSsplit = split_data(dataMCS,lenis["MCS"])
+# UWSsplit = split_data(dataUWS,lenis["UWS"])
 
+CNT_jumps_pooled = np.concatenate(CNT_jump_lengths)
+MCS_jumps_pooled = np.concatenate(MCS_jump_lengths)
+UWS_jumps_pooled = np.concatenate(UWS_jump_lengths)
 
+# np.savez("data/pooled_jumps_manhattan.npz",CNT_jumps_pooled=CNT_jumps_pooled,MCS_jumps_pooled=MCS_jumps_pooled,UWS_jumps_pooled=UWS_jumps_pooled)
+
+# halt
 #%% OBTENER PARAMETROS DE LEVY
 
 ##we save empirical kurtosis 
 
-CNT_params = np.zeros((13,5))
-MCS_params = np.zeros((25,5))
-UWS_params = np.zeros((20,5))
+CNT_stats = np.zeros((13,4)) ##mean,std,skew,kurt
+MCS_stats = np.zeros((25,4)) 
+UWS_stats = np.zeros((20,4)) 
 
+CNT_params = np.zeros((13,7)) ##shape,loc,scale,skew,kurt,gof
+MCS_params = np.zeros((25,7)) 
+UWS_params = np.zeros((20,7))
+
+##CNT
 for i in range(13):
-    print(i)
+    # print(i)
     dist = CNT_jump_lengths[i]
-    a,loc,scale = gamma.fit(dist,floc=0)
-    CNT_params[i,:] = a,loc,scale,kurt(dist),skew(dist)
-for i in range(25):
-    print(i)
-    dist = MCS_jump_lengths[i]
-    a,loc,scale = gamma.fit(dist,floc=0)
-    MCS_params[i,:] = a,loc,scale,kurt(dist),skew(dist)
-for i in range(20):
-    print(i)
-    dist = UWS_jump_lengths[i]
-    a,loc,scale = gamma.fit(dist,floc=0)
-    UWS_params[i,:] = a,loc,scale,kurt(dist),skew(dist)
     
-#%% autocorrelaciones por individuo y cuando caen debajo de 0.5
+    CNT_stats[i,:] = np.mean(dist),np.var(dist),skew(dist),kurt(dist)
+    
+    c,loc,scale = weibull.fit(dist,floc=0)
+    #KS test
+    ks_stat, ks_pval = kstest(dist, "weibull_min", args=(c, loc, scale))
+    print(i,ks_pval)
+    
+    w_mean, w_var, w_skew, w_kurt = weibull.stats(c, moments='mvsk')
+    CNT_params[i,:] = c,loc,scale,scale*w_mean, scale**2*w_var, w_skew, ks_stat
+    # print(ks_stat)
 
+##MCS
+for i in range(25):
+    dist = MCS_jump_lengths[i]
+    
+    MCS_stats[i,:] = np.mean(dist),np.var(dist),skew(dist),kurt(dist)
+    
+    c,loc,scale = weibull.fit(dist,floc=0)
+    #KS test
+    ks_stat, ks_pval = kstest(dist, "weibull_min", args=(c, loc, scale))
+    print(i,ks_pval)
+    
+    w_mean, w_var, w_skew, w_kurt = weibull.stats(c, moments='mvsk')
+    MCS_params[i,:] = c,loc,scale,scale*w_mean, scale**2*w_var, w_skew, ks_stat
+
+##UWS
+for i in range(20):
+    dist = UWS_jump_lengths[i]
+    
+    UWS_stats[i,:] = np.mean(dist),np.var(dist),skew(dist),kurt(dist)
+    
+    c,loc,scale = weibull.fit(dist,floc=0)
+    #KS test
+    ks_stat, ks_pval = kstest(dist, "weibull_min", args=(c, loc, scale))
+    print(i,ks_pval)
+    
+    w_mean, w_var, w_skew, w_kurt = weibull.stats(c, moments='mvsk')
+    UWS_params[i,:] = c,loc,scale,scale*w_mean, scale**2*w_var, w_skew, ks_stat
+
+#%% general distribution parameters
+
+##mainly for plotting but not only that
+xmin,xmax = 0,np.max(np.concatenate([np.concatenate(CNT_jump_lengths),np.concatenate(MCS_jump_lengths),np.concatenate(UWS_jump_lengths)]))
+
+
+
+stats  = [CNT_stats,MCS_stats,UWS_stats]
 params = [CNT_params,MCS_params,UWS_params] #inicializamos parametros de levy
 
-#kurtosis analysis and visualize
-CNT_kurt = 6/params[0][:,0]
-MCS_kurt = 6/params[1][:,0]
-UWS_kurt = 6/params[2][:,0]
-
-CNT_skew = 2/params[0][:,0]**.5
-MCS_skew = 2/params[1][:,0]**.5
-UWS_skew = 2/params[2][:,0]**.5
+pooled_fit = {}
+for s,dist in enumerate([CNT_jumps_pooled,MCS_jumps_pooled,UWS_jumps_pooled]):
+    c,loc,scale = weibull.fit(dist,floc=0)
+    pooled_fit[states[s]] = (c,loc,scale)
 
 
-##T test
-p1 = ttest_ind(CNT_kurt,MCS_kurt)[1]
-p2 = ttest_ind(CNT_kurt,UWS_kurt)[1]
-p3 = ttest_ind(MCS_kurt,UWS_kurt)[1]
-p1,p2,p3=corrected = multipletests((p1,p2,p3),method="fdr_bh")[1]
-print(f"p-val (CNT,MCS),(CNT,UWS),(MCS,UWS): {corrected}")
+# halt
+#%% autocorrelaciones por individuo y cuando caen debajo de 0.5
 
+
+
+def p_and_d(dist1,dist2,dist3):
+    p1 = ttest_ind(dist1,dist2)[1]
+    p2 = ttest_ind(dist1,dist3)[1]
+    p3 = ttest_ind(dist2,dist3)[1]
+    p1,p2,p3 = multipletests((p1,p2,p3),method="fdr_bh")[1]
+    
+    d1 = utils.cohen_d(dist1,dist2)
+    d2 = utils.cohen_d(dist1,dist3)
+    d3 = utils.cohen_d(dist2,dist3)
+    
+    return p1,p2,p3,d1,d2,d3
+    
+
+#SKEWNESS EMPIRICAL
+p1,p2,p3,d1,d2,d3 = p_and_d(stats[0][:,2],stats[1][:,2],stats[2][:,2])
+print(f"EMPIRICAL SKEWNESS\np-val (CNT,MCS),(CNT,UWS),(MCS,UWS): ({p1},{p2},{p3})")
 ##D de cohen
-d1 = utils.cohen_d(CNT_kurt,MCS_kurt)
-d2 = utils.cohen_d(CNT_kurt,UWS_kurt)
-d3 = utils.cohen_d(MCS_kurt,UWS_kurt)
-print(f"cohen-d (CNT,MCS),(CNT,UWS),(MCS,UWS): {(d1,d2,d3)}")
+print(f"cohen-d (CNT,MCS),(CNT,UWS),(MCS,UWS): ({d1:.3f},{d2:.3f},{d3:.3f})")
 
-#%% ploteo de los parametros de levy para todos los individuos 
+#SKEWNESS GAMMA
+p1,p2,p3,d1,d2,d3 = p_and_d(params[0][:,3],params[1][:,3],params[2][:,3])
+print(f"GAMMA SKEWNESS\np-val (CNT,MCS),(CNT,UWS),(MCS,UWS): {p1},{p2},{p3}")
+print(f"cohen-d (CNT,MCS),(CNT,UWS),(MCS,UWS): ({d1:.3f},{d2:.3f},{d3:.3f})")
+
+#KURTOSIS EMPIRICAL
+p1,p2,p3,d1,d2,d3 = p_and_d(stats[0][:,3],stats[1][:,3],stats[2][:,3])
+print(f"\nEMPIRICAL KURTOSIS\np-val (CNT,MCS),(CNT,UWS),(MCS,UWS): ({p1},{p2},{p3})")
+print(f"cohen-d (CNT,MCS),(CNT,UWS),(MCS,UWS): ({d1:.3f},{d2:.3f},{d3:.3f})")
+
+#KURTOSIS GAMMA
+p1,p2,p3,d1,d2,d3 = p_and_d(params[0][:,4],params[1][:,4],params[2][:,4])
+print(f"GAMMA KURTOSIS\np-val (CNT,MCS),(CNT,UWS),(MCS,UWS): ({p1},{p2},{p3})")
+print(f"cohen-d (CNT,MCS),(CNT,UWS),(MCS,UWS): ({d1:.3f},{d2:.3f},{d3:.3f})")
+
+#%% ploteo de las distribuciones y parámetros de levy para todos los individuos
 
 
-xmin,xmax = 0,np.max(np.concatenate([np.concatenate(CNT_jump_lengths),np.concatenate(MCS_jump_lengths),np.concatenate(UWS_jump_lengths)]))
-xaxis = np.linspace(xmin,xmax,1000)
+
+xaxis = np.linspace(xmin,xmax+5,1000)
 
 alfa = 0.5
+titlesize = 14
+subtitlesize=12
+labelsize = 14
+ticksize = 14
+legendsize=14
+
 
 plt.figure(1)
 plt.clf()
-plt.subplot2grid((3,4),(0,0),rowspan=2,colspan=2)
-plt.title("all pooled")
-dist = np.concatenate(CNT_jump_lengths)
+
+####################GOTTA TRY SOME DISTRIBUTIONS
+#general pooled distributions
+# plt.subplot2grid((1,5),(0,0),colspan=2)
+ax=plt.subplot2grid((1,4),(0,0),colspan=2)
+plt.title("Pooled distributions",fontsize=titlesize)
+dist = CNT_jumps_pooled
+c,loc,scale = pooled_fit["CNT"]
 print(f"CNT\nmean\tmedian\tstd\tCV\n{dist.mean():.4f}\t{np.median(dist):.4f}\t{dist.std():.4f}\t{dist.std()/dist.mean():.4f}")
 plt.hist(dist,label="CNT",density=True,alpha=alfa,bins=50,color="tab:blue")
-dist = np.concatenate(MCS_jump_lengths)
+pdf = weibull.pdf(xaxis,c=c,loc=loc,scale=scale)
+plt.plot(xaxis,pdf,color="tab:blue")
+
+
+dist = MCS_jumps_pooled
+c,loc,scale = pooled_fit["MCS"]
 print(f"MCS\n{dist.mean():.4f}\t{np.median(dist):.4f}\t{dist.std():.4f}\t{dist.std()/dist.mean():.4f}")
 plt.hist(dist,label="MCS",density=True,alpha=alfa,bins=50,color="tab:orange")
-dist = np.concatenate(UWS_jump_lengths)
+pdf = weibull.pdf(xaxis,c=c,loc=loc,scale=scale)
+plt.plot(xaxis,pdf,color="tab:orange")
+
+dist = UWS_jumps_pooled
+c,loc,scale = pooled_fit["UWS"]
 print(f"UWS\n{dist.mean():.4f}\t{np.median(dist):.4f}\t{dist.std():.4f}\t{dist.std()/dist.mean():.4f}")
 plt.hist(dist,label="UWS",density=True,alpha=alfa,bins=50,color="tab:green")
-plt.legend()
-plt.xlim(xmin,xmax)
-# dist = np.abs(np.random.normal(loc=0,scale=1000,size=4000))
-# print(f"NORMAL\n{dist.mean():.4f}\t{np.median(dist):.4f}\t{dist.std():.4f}\t{dist.std()/dist.mean():.4f}")
-# plt.hist(dist,label="NORMAL",density=True,alpha=0.3,bins=50,color="black")
+pdf = weibull.pdf(xaxis,c=c,loc=loc,scale=scale)
+plt.plot(xaxis,pdf,color="tab:green")
 
+plt.legend(loc="upper left",fontsize=legendsize)
+plt.xticks((0,10,20,30,40,50,60),(0,10,20,30,40,50,60),fontsize=ticksize)
+plt.yticks((0,0.02,0.04,0.06,0.08),(0,0.02,0.04,0.06,0.08),fontsize=ticksize)
+plt.ylabel("Normalized count",size=labelsize)
+plt.xlabel("Jump length",size=labelsize)
+##distributions by state
+x0,y0,width,height,space = 0.7,0.73,0.2,0.2,0.28
+# left,top,vspace = 0.7,0.8,0.25
+xtext,ytext = 0.7,0.8
+alfasub= 0.6
 
-plt.subplot2grid((3,4),(0,2))
-plt.title("CNT individuals, N=13")
+#######GOTTA MAKE INSET AXIS FOR INDIVIDUAL DISTRIBUTIONS
+subax = ax.inset_axes([x0, y0-0*space, width, height])
+subax.text(xtext,ytext, 'CNT', transform=subax.transAxes,fontsize=subtitlesize,weight="bold")
 for i in range(13):
-    # print(i)4
     dist = CNT_jump_lengths[i]
-    a,loc,scale,_,_ = CNT_params[i]
-    pdf = gamma.pdf(xaxis,a=a,loc=loc,scale=scale)
-    plt.plot(xaxis,pdf,color="black")
-    plt.hist(dist,label=i,density=True,alpha=alfa,bins=20)
-plt.xlim(xmin,xmax)
+    c,loc,scale,_,_,_,_ = CNT_params[i] ##tiene 5
+    pdf = weibull.pdf(xaxis,c=c,loc=loc,scale=scale)
+    subax.plot(xaxis,pdf,color="black",alpha=alfasub)
+    subax.hist(dist,label=i,density=True,alpha=alfa,bins=20)
+subax.set_xlim(xmin,xmax)
+subax.spines[['top', 'right']].set_visible(False)
+subax.set_xticks((0,30,60),(0,30,60),fontsize=ticksize)
+subax.set_yticks((0,0.05,0.1),(0,0.05,0.1),fontsize=ticksize)
 # plt.legend()
+
+subax = ax.inset_axes([x0, y0-1*space, width, height])
+subax.text(xtext,ytext, 'MCS', transform=subax.transAxes,fontsize=subtitlesize,weight="bold")
+for i in range(25):
+    dist = MCS_jump_lengths[i]
+    c,loc,scale,_,_,_,_ = MCS_params[i] ##tiene 5
+    pdf = weibull.pdf(xaxis,c=c,loc=loc,scale=scale)
+    subax.plot(xaxis,pdf,color="black",alpha=alfasub)
+    subax.hist(dist,label=i,density=True,alpha=alfa,bins=20)
+subax.set_xlim(xmin,xmax)
+subax.spines[['top', 'right']].set_visible(False)
+subax.set_xticks((0,30,60),(0,30,60),fontsize=ticksize)
+subax.set_yticks((0,0.05,0.1),(0,0.05,0.1),fontsize=ticksize)
+
+subax = ax.inset_axes([x0, y0-2*space, width, height])
+subax.text(xtext,ytext, 'UWS', transform=subax.transAxes,fontsize=subtitlesize,weight="bold")
+for i in range(20):
+    dist = UWS_jump_lengths[i]
+    c,loc,scale,_,_,_,_ = UWS_params[i] ##tiene 5
+    pdf = weibull.pdf(xaxis,c=c,loc=loc,scale=scale)
+    subax.plot(xaxis,pdf,color="black",alpha=alfasub)
+    subax.hist(dist,label=i,density=True,alpha=alfa,bins=20)
+subax.set_xlim(xmin,xmax)
+subax.spines[['top', 'right']].set_visible(False)
+subax.set_xticks((0,30,60),(0,30,60),fontsize=ticksize)
+subax.set_yticks((0,0.05,0.1),(0,0.05,0.1),fontsize=ticksize)
+#parameters
+
+###########empirical stuff: std, skewness and GoF
+plt.subplot2grid((3,4),(0,2))
+plt.title("Empirical Skewness",weight="bold")
+toplot = [sta[:,2] for sta in stats]
+sns.swarmplot(toplot,color="black")
+sns.boxplot(toplot)
+plt.xticks([0,1,2],["CNT","MCS","UWS"],fontsize=ticksize)
+plt.yticks((-0.5,0,0.5,1),(-0.5,0,0.5,1),fontsize=ticksize)
 
 plt.subplot2grid((3,4),(1,2))
-plt.title("MCS individuals, N=25")
-for i in range(25):
-    # print(i)
-    dist = MCS_jump_lengths[i]
-    a,loc,scale,_,_ = MCS_params[i]
-    pdf = gamma.pdf(xaxis,a=a,loc=loc,scale=scale)
-    plt.plot(xaxis,pdf,color="black")
-    plt.hist(dist,label=i,density=True,alpha=alfa,bins=20)
-# plt.legend()
-plt.xlim(xmin,xmax)
-
-plt.subplot2grid((3,4),(1,3))
-plt.title("UWS individuals, N=20")
-for i in range(20):
-    # print(i)
-    dist = UWS_jump_lengths[i]
-    a,loc,scale,_,_ = UWS_params[i]
-    pdf = gamma.pdf(xaxis,a=a,loc=loc,scale=scale)
-    plt.plot(xaxis,pdf,color="black")
-    plt.hist(dist,label=i,density=True,alpha=alfa,bins=20)
-# plt.legend()
-plt.xlim(xmin,xmax)
-
-plt.subplot2grid((3,4),(0,3))
-plt.title("empirical skewness")
-sns.swarmplot([sta[:,4] for sta in params],color="black")
-sns.boxplot([sta[:,4] for sta in params])
-plt.xticks([0,1,2],["CNT","MCS","UWS"])
-
-
-###########gamma shit
-plt.subplot2grid((3,4),(2,0))
-plt.title("a ('shape')")
-sns.swarmplot([sta[:,0] for sta in params],color="black")
-sns.boxplot([sta[:,0] for sta in params])
-plt.xticks([0,1,2],["CNT","MCS","UWS"])
-
-plt.subplot2grid((3,4),(2,1))
-plt.title("scale")
-sns.swarmplot([sta[:,2] for sta in params],color="black")
-sns.boxplot([sta[:,2] for sta in params])
-plt.xticks([0,1,2],["CNT","MCS","UWS"])
+plt.title("Variance",weight="bold")
+toplot = [sta[:,1] for sta in stats]
+sns.swarmplot(toplot,color="black")
+sns.boxplot(toplot)
+plt.xticks([0,1,2],["CNT","MCS","UWS"],fontsize=ticksize)
+plt.yticks((25,50,75,100,125,150),(25,50,75,100,125,150),fontsize=ticksize)
 
 plt.subplot2grid((3,4),(2,2))
-plt.title("theoretical kurtosis"+r"  $(2/a)$")
-sns.swarmplot([6/sta[:,0] for sta in params],color="black")
-sns.boxplot([6/sta[:,0] for sta in params])
-plt.xticks([0,1,2],["CNT","MCS","UWS"])
+plt.title("Weibull GoF (lower=better)",weight="bold")
+toplot = [param[:,-1] for param in params]
+sns.swarmplot(toplot,color="black")
+sns.boxplot(toplot)
+plt.xticks([0,1,2],["CNT","MCS","UWS"],fontsize=ticksize)
+plt.yticks((0,0.02,0.04,0.06,0.08,0.1),(0,0.02,0.04,0.06,0.08,0.1),fontsize=ticksize)
+
+
+#############fit stuff:
+plt.subplot2grid((3,4),(0,3))
+plt.title("Weibull Skewness",weight="bold")
+toplot = [param[:,5] for param in params]
+sns.swarmplot(toplot,color="black")
+sns.boxplot(toplot)
+plt.xticks([0,1,2],["CNT","MCS","UWS"],fontsize=ticksize)
+plt.yticks((-0.4,-0.2,0,0.2,0.4,0.6),(-0.4,-0.2,0,0.2,0.4,0.6),fontsize=ticksize)
+
+plt.subplot2grid((3,4),(1,3))
+plt.title("Weibull Var",weight="bold")
+toplot = [param[:,4] for param in params]
+sns.swarmplot(toplot,color="black")
+sns.boxplot(toplot)
+plt.xticks([0,1,2],["CNT","MCS","UWS"],fontsize=ticksize)
+plt.yticks((25,50,75,100,125,150),(25,50,75,100,125,150),fontsize=ticksize)
+
 
 plt.subplot2grid((3,4),(2,3))
-plt.title("empirical kurtosis")
-sns.swarmplot([sta[:,3] for sta in params],color="black")
-# plt.yticks([])
-sns.boxplot([sta[:,3] for sta in params])
-plt.xticks([0,1,2],["CNT","MCS","UWS"])
+plt.title("Weibull Shape",weight="bold")
+toplot = [param[:,0] for param in params]
+sns.swarmplot(toplot,color="black")
+sns.boxplot(toplot)
+plt.xticks([0,1,2],["CNT","MCS","UWS"],fontsize=ticksize)
+plt.yticks((2,3,4,5,6,7),(2,3,4,5,6,7),fontsize=ticksize)
 
-plt.tight_layout()
+# plt.tight_layout()
+plt.subplots_adjust(wspace=0.4, hspace=0.6)
+# plt.savefig("figures/figure2.svg",dpi=300,transparent=True)
 plt.show()
 
-
-#%%
-
-plt.figure(4)
+#%% print parameters
+plt.figure(2)
 plt.clf()
-###########kurtosis
-plt.subplot(331)
-plt.title("empirical kurtosis"+r"  $(6/a)$")
-sns.swarmplot([sta[:,3] for sta in params],color="black")
-sns.boxplot([sta[:,3] for sta in params])
-plt.xticks([0,1,2],["CNT","MCS","UWS"])
-
-plt.subplot(332)
-plt.title("theoretical kurtosis"+r"  $(6/a)$")
-sns.swarmplot([CNT_kurt,MCS_kurt,UWS_kurt],color="black")
-sns.boxplot([CNT_kurt,MCS_kurt,UWS_kurt])
-plt.xticks([0,1,2],["CNT","MCS","UWS"])
-
-
-###########skewness
-plt.subplot(334)
-plt.title("empirical skewness"+r"  $(6/a)$")
-sns.swarmplot([sta[:,4] for sta in params],color="black")
-sns.boxplot([sta[:,4] for sta in params])
-plt.xticks([0,1,2],["CNT","MCS","UWS"])
-
-plt.subplot(335)
-plt.title("theoretical skewness"+r"  $(6/a)$")
-sns.swarmplot([CNT_skew,MCS_skew,UWS_skew],color="black")
-sns.boxplot([CNT_skew,MCS_skew,UWS_skew])
-plt.xticks([0,1,2],["CNT","MCS","UWS"])
-
-plt.subplot(339)
-plt.title("shape and scale parameters")
-plt.scatter(params[0][:,0],params[0][:,2],label="CNT")
-plt.scatter(params[1][:,0],params[1][:,2],label="MCS")
-plt.scatter(params[2][:,0],params[2][:,2],label="UWS")
-plt.xlabel("shape");plt.ylabel("scale")
-
+plt.subplot(111)
+for d in range(3):
+    param = params[d]
+    c,scale = param[:,0],param[:,2]
+    plt.scatter(c,scale,label=states[d])
+plt.legend()
+plt.xlabel("shape 'c'")
+plt.ylabel("scale")
 plt.show()
+    
+
 
 #%% analyze outliers of MCS jump kurtosis
 

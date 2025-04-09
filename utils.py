@@ -329,14 +329,19 @@ def process_labels_pyclustering(lon,pyLabels):
     return labels.astype(int)
 
 
-def symm2RSNd(FC):
+def symm2RSNd(FC,nanear =False):
     new_entries = [21, 22, 23, 24, 66, 67, 68,
                23, 24, 25, 26, 29, 60, 63, 64, 65,
                5, 6, 8, 14, 15,16, 20, 31, 36, 37, 38, 39, 40, 47, 48, 49, 50, 51, 52, 53, 58, 69, 72, 73, 75, 81,
                8, 16, 28, 29, 34, 39, 50, 55, 60, 61, 73, 81, 89,
                12, 15, 17, 32, 33, 38, 49, 51, 56, 57, 72, 77,
                0, 1, 3, 9, 11, 12, 14, 15, 16, 31, 33, 41, 48, 54, 56, 73, 74, 75, 77, 78, 80, 86, 88, 89]
-    return FC[new_entries,:][:,new_entries]
+    out = FC[new_entries,:][:,new_entries]
+    
+    if nanear:
+        lower = np.tril_indices(len(out))
+        out[lower]=np.nan
+    return out
 
 def split_data(data,lennys,setoff=0,t_as_col=True):
     if not t_as_col:

@@ -300,7 +300,7 @@ plt.title("Empirical Skewness",weight="bold")
 toplot = [sta[:,2] for sta in stats]
 sns.swarmplot(toplot,color="black")
 sns.boxplot(toplot)
-plt.xticks([0,1,2],["CNT","MCS","UWS"],fontsize=ticksize)
+plt.xticks([0,1,2],["CNT","MCS","UWS"],weight="bold",fontsize=ticksize)
 plt.yticks((-0.5,0,0.5,1),(-0.5,0,0.5,1),fontsize=ticksize)
 
 plt.subplot2grid((3,4),(1,2))
@@ -308,7 +308,7 @@ plt.title("Variance",weight="bold")
 toplot = [sta[:,1] for sta in stats]
 sns.swarmplot(toplot,color="black")
 sns.boxplot(toplot)
-plt.xticks([0,1,2],["CNT","MCS","UWS"],fontsize=ticksize)
+plt.xticks([0,1,2],["CNT","MCS","UWS"],weight="bold",fontsize=ticksize)
 plt.yticks((25,50,75,100,125,150),(25,50,75,100,125,150),fontsize=ticksize)
 
 plt.subplot2grid((3,4),(2,2))
@@ -316,7 +316,7 @@ plt.title("Weibull GoF (lower=better)",weight="bold")
 toplot = [param[:,-1] for param in params]
 sns.swarmplot(toplot,color="black")
 sns.boxplot(toplot)
-plt.xticks([0,1,2],["CNT","MCS","UWS"],fontsize=ticksize)
+plt.xticks([0,1,2],["CNT","MCS","UWS"],weight="bold",fontsize=ticksize)
 plt.yticks((0,0.02,0.04,0.06,0.08,0.1),(0,0.02,0.04,0.06,0.08,0.1),fontsize=ticksize)
 
 
@@ -326,7 +326,7 @@ plt.title("Weibull Skewness",weight="bold")
 toplot = [param[:,5] for param in params]
 sns.swarmplot(toplot,color="black")
 sns.boxplot(toplot)
-plt.xticks([0,1,2],["CNT","MCS","UWS"],fontsize=ticksize)
+plt.xticks([0,1,2],["CNT","MCS","UWS"],weight="bold",fontsize=ticksize)
 plt.yticks((-0.4,-0.2,0,0.2,0.4,0.6),(-0.4,-0.2,0,0.2,0.4,0.6),fontsize=ticksize)
 
 plt.subplot2grid((3,4),(1,3))
@@ -334,7 +334,7 @@ plt.title("Weibull Var",weight="bold")
 toplot = [param[:,4] for param in params]
 sns.swarmplot(toplot,color="black")
 sns.boxplot(toplot)
-plt.xticks([0,1,2],["CNT","MCS","UWS"],fontsize=ticksize)
+plt.xticks([0,1,2],["CNT","MCS","UWS"],weight="bold",fontsize=ticksize)
 plt.yticks((25,50,75,100,125,150),(25,50,75,100,125,150),fontsize=ticksize)
 
 
@@ -343,12 +343,12 @@ plt.title("Weibull Shape",weight="bold")
 toplot = [param[:,0] for param in params]
 sns.swarmplot(toplot,color="black")
 sns.boxplot(toplot)
-plt.xticks([0,1,2],["CNT","MCS","UWS"],fontsize=ticksize)
+plt.xticks([0,1,2],["CNT","MCS","UWS"],weight="bold",fontsize=ticksize)
 plt.yticks((2,3,4,5,6,7),(2,3,4,5,6,7),fontsize=ticksize)
 
 # plt.tight_layout()
 plt.subplots_adjust(wspace=0.4, hspace=0.6)
-# plt.savefig("figures/figure2.svg",dpi=300,transparent=True)
+plt.savefig("figures/fig2.svg",dpi=300,transparent=True)
 plt.show()
 
 #%% print parameters

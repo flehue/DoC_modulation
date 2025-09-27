@@ -37,10 +37,6 @@ def get_FC(data,t_as_col=True,filterr=True,low=0.01,high=0.1,TR=2.4):
     fc = np.corrcoef(data)
     return fc
 
-
-
-
-
 def kuramoto(sign):
     analytic = hilbert(sign,axis=0)
     angle = np.angle(analytic)
@@ -89,26 +85,6 @@ def cortex_mat(mat90):
     sub = subL+subR
     cortex = [i for i in range(90) if i not in sub]
     return mat90[cortex,:][:,cortex]
-
-
-#############ENTRADAS POR RSN
-# RSN_index = []
-# RSNs = np.loadtxt("../RSN_AAL_Enzo.txt")
-# RSN_labels = ["Vis","ES","Aud","SM","DM","EC"]
-# for i in range(6):
-#     these_nodes = RSNs[:,i]==1
-#     RSN_index.append(np.array(range(90))[these_nodes])
-# ##########
-
-# def RSN_profile_FC(FC):
-#     ##asumimos que la señal de BOLD viene filtrada
-#     profile = []
-#     for k,rsn in enumerate(RSN_index):
-#         subFC = FC[rsn,:][:,rsn]
-#         flat_subFC = flat_FC(subFC)
-#         mean = flat_subFC.mean()
-#         profile.append(mean)
-#     return np.array(profile)
 
 
 def find_extreme(df,targetval,ex="min", cols=None):
@@ -343,6 +319,8 @@ def symm2RSNd(FC,nanear =False):
         out[lower]=np.nan
     return out
 
+
+
 def split_data(data,lennys,setoff=0,t_as_col=True):
     if not t_as_col:
         data=data.T
@@ -383,13 +361,28 @@ def ind_outliers(some_data,th=3,full=False):
     else: 
         return out_mask
 
-def reord(data):
-    "toma un AAL90 con (1L,1R,2L,2R,...) intercalado y lo simetriza a (1L,2L,...,44L,45L,45R,44R,...,2R,1R)"
-    left = range(0,90,2)
-    right = range(1,90,2)
-    ordd = list(left) + list(right[::-1])
+def reord(data,do="lrlr to llrr"):
+
+    if do == "lrlr to llrr":
+        "toma un AAL90 con (1L,1R,2L,2R,...) intercalado y lo simetriza a (1L,2L,...,44L,45L,45R,44R,...,2R,1R)"
+        left = range(0,90,2)
+        right = range(1,90,2)
+        ordd = list(left) + list(right[::-1])
+
+    elif do == "llrr to lrlr":
+        left = range(45)
+        right = range(45,90)[::-1]
+        ordd = []
+        for i in range(45):
+            ordd.append(left[i])
+            ordd.append(right[i])
+    elif do == "LlrR to LlRr":
+        left = range(45)
+        right = range(45,90)
+        ordd = list(left)+ list(right)[::-1]
     if len(data.shape)==2:
-        return data[ordd,:][:,ordd]
+            return data[ordd,:][:,ordd]
     elif len(data.shape)==1:
         return data[ordd]
+
 

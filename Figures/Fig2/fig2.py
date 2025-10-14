@@ -11,11 +11,13 @@ sys.path.append("../../")
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import weibull_min as weibull,skew,ttest_ind,kurtosis as kurt,kstest
+from scipy.stats import kruskal, mannwhitneyu as mw
 from scipy.special import gamma as gf
 from statsmodels.stats.multitest import multipletests
 import utils
 import seaborn as sns
 import warnings
+import pandas as pd
 from plot_violins import violin_plot#(ax, data, color_names, alpha_violin = 1, s_box = 20, s_ind = 20,inds= None)
 warnings.filterwarnings("ignore")
 
@@ -94,68 +96,65 @@ UWS_jumps_pooled = np.concatenate(UWS_jump_lengths)
 
 ##we save empirical kurtosis 
 
-CNT_stats = np.zeros((13,4)) ##mean,std,skew,kurt
-MCS_stats = np.zeros((25,4)) 
-UWS_stats = np.zeros((20,4)) 
+general_df = pd.DataFrame()
 
-CNT_params = np.zeros((13,7)) ##shape,loc,scale,skew,kurt,gof
-MCS_params = np.zeros((25,7)) 
-UWS_params = np.zeros((20,7))
 
-##CNT
-for i in range(13):
-    # print(i)
-    dist = CNT_jump_lengths[i]
-    
-    CNT_stats[i,:] = np.mean(dist),np.var(dist),skew(dist),kurt(dist)
-    
-    c,loc,scale = weibull.fit(dist,floc=0)
-    #KS test
-    ks_stat, ks_pval = kstest(dist, "weibull_min", args=(c, loc, scale))
-    print(i,ks_pval)
-    
-    w_mean, w_var, w_skew, w_kurt = weibull.stats(c, moments='mvsk')
-    CNT_params[i,:] = c,loc,scale,scale*w_mean, scale**2*w_var, w_skew, ks_stat
-    # print(ks_stat)
 
-##MCS
-for i in range(25):
-    dist = MCS_jump_lengths[i]
-    
-    MCS_stats[i,:] = np.mean(dist),np.var(dist),skew(dist),kurt(dist)
-    
-    c,loc,scale = weibull.fit(dist,floc=0)
-    #KS test
-    ks_stat, ks_pval = kstest(dist, "weibull_min", args=(c, loc, scale))
-    print(i,ks_pval)
-    
-    w_mean, w_var, w_skew, w_kurt = weibull.stats(c, moments='mvsk')
-    MCS_params[i,:] = c,loc,scale,scale*w_mean, scale**2*w_var, w_skew, ks_stat
 
-##UWS
-for i in range(20):
-    dist = UWS_jump_lengths[i]
+def extract_from_jumps(jumplist=CNT_jump_lengths,label="CNT"):
+    N = len(jumplist)
+    ##just fill
+    states = N*[label]
     
-    UWS_stats[i,:] = np.mean(dist),np.var(dist),skew(dist),kurt(dist)
-    
-    c,loc,scale = weibull.fit(dist,floc=0)
-    #KS test
-    ks_stat, ks_pval = kstest(dist, "weibull_min", args=(c, loc, scale))
-    print(i,ks_pval)
-    
-    w_mean, w_var, w_skew, w_kurt = weibull.stats(c, moments='mvsk')
-    UWS_params[i,:] = c,loc,scale,scale*w_mean, scale**2*w_var, w_skew, ks_stat
+    means,stds,skews,kurts = [],[],[],[] ##empirical
+    shapes,locs,scales = [],[],[] ##model
+    entropies = []
+    mod_means,mod_stds,mod_skews,mod_kurts,gofs,mod_ps = [],[],[],[],[],[]#model
+    ##state
+    for i in range(N):
+        dist = jumplist[i]
+        #empirical observables
+        mean,std,skewness,kurtosis = np.mean(dist),np.std(dist),skew(dist),kurt(dist)
+        #model observables
+        c,loc,scale = weibull.fit(dist,floc=0)
+        ks_stat, ks_pval = kstest(dist, "weibull_min", args=(c, loc, scale))
+        w_mean, w_var, w_skew, w_kurt = weibull.stats(c, moments='mvsk')
+        entropy = weibull.entropy(c,loc,scale)
+        model_mean = scale*w_mean
+        model_std = scale*np.sqrt(w_var)
+        
+        #save
+        means.append(mean)
+        stds.append(std)
+        skews.append(skewness)
+        kurts.append(kurtosis)
+        shapes.append(c)
+        locs.append(loc)
+        scales.append(scale)
+        entropies.append(entropy)
+        
+        mod_means.append(model_mean)
+        mod_stds.append(model_std)
+        mod_skews.append(w_skew)
+        mod_kurts.append(w_kurt)
+        gofs.append(ks_stat)
+        mod_ps.append(ks_pval)
+    df = pd.DataFrame({"state":states,"mean":means,"std":stds,"skew":skews,"kurt":kurts,
+                       "shape":shapes,"loc":locs,"scale":scales,
+                       "mod_mean":mod_means,"mod_std":mod_stds,"mod_skew":mod_skews,"mod_kurt":mod_kurts,
+                       "wei_ks":gofs,"wei_p":mod_ps,"entropy":entropies})
+    return df
+
+df = extract_from_jumps(jumplist = CNT_jump_lengths,label="CNT")
+df = pd.concat((df,extract_from_jumps(jumplist = MCS_jump_lengths,label="MCS")))
+df = pd.concat((df,extract_from_jumps(jumplist = UWS_jump_lengths,label="UWS")))
+df["var"] = df["std"]**2
+df["mod_var"] = df["mod_std"]**2
 
 #%% general distribution parameters
 
 ##mainly for plotting but not only that
 xmin,xmax = 0,np.max(np.concatenate([np.concatenate(CNT_jump_lengths),np.concatenate(MCS_jump_lengths),np.concatenate(UWS_jump_lengths)]))
-
-
-
-stats  = [CNT_stats,MCS_stats,UWS_stats]
-params = [CNT_params,MCS_params,UWS_params] #inicializamos parametros de levy
-
 pooled_fit = {}
 for s,dist in enumerate([CNT_jumps_pooled,MCS_jumps_pooled,UWS_jumps_pooled]):
     c,loc,scale = weibull.fit(dist,floc=0)
@@ -167,44 +166,47 @@ for s,dist in enumerate([CNT_jumps_pooled,MCS_jumps_pooled,UWS_jumps_pooled]):
 
 
 
-def p_and_d(dist1,dist2,dist3):
-    p1 = ttest_ind(dist1,dist2)[1]
-    p2 = ttest_ind(dist1,dist3)[1]
-    p3 = ttest_ind(dist2,dist3)[1]
-    p1,p2,p3 = multipletests((p1,p2,p3),method="fdr_bh")[1]
+def p_and_d(df,column):
+    dist1,dist2,dist3 = [df[df["state"]==st][column] for st in states]
+    _, p_omnibus = kruskal(dist1, dist2, dist3)
+    if p_omnibus < 0.05:
+        # Pairwise t-tests
+        p_vals = [ttest_ind(dist1, dist2)[1],
+                  ttest_ind(dist1, dist3)[1],
+                  ttest_ind(dist2, dist3)[1]]
+        
+        # Multiple testing correction
+        p1,p2,p3 = multipletests(p_vals, method="fdr_bh")[1]
+    else:
+        p1,p2,p3 = [None, None, None]  # Not significant, skip post-hoc
+
+    # Effect sizes
+    d1,d2,d3 = [utils.cohen_d(dist1, dist2),
+              utils.cohen_d(dist1, dist3),
+              utils.cohen_d(dist2, dist3)]
     
-    d1 = utils.cohen_d(dist1,dist2)
-    d2 = utils.cohen_d(dist1,dist3)
-    d3 = utils.cohen_d(dist2,dist3)
+    print(f"{column}: kruskal = {p_omnibus}\np-val (CNT,MCS),(CNT,UWS),(MCS,UWS): ({p1},{p2},{p3})")
+    print(f"cohen-d (CNT,MCS),(CNT,UWS),(MCS,UWS): ({d1:.3f},{d2:.3f},{d3:.3f})\n")
     
-    return p1,p2,p3,d1,d2,d3
-    
+    return p_omnibus, (p1,p2,p3), (d1,d2,d3)
+
+
 
 #SKEWNESS EMPIRICAL
-p1,p2,p3,d1,d2,d3 = p_and_d(stats[0][:,2],stats[1][:,2],stats[2][:,2])
-print(f"EMPIRICAL SKEWNESS\np-val (CNT,MCS),(CNT,UWS),(MCS,UWS): ({p1},{p2},{p3})")
-##D de cohen
-print(f"cohen-d (CNT,MCS),(CNT,UWS),(MCS,UWS): ({d1:.3f},{d2:.3f},{d3:.3f})")
+# kw,ps,ds = p_and_d(df,"skew")
+# kw,ps,ds = p_and_d(df,"mod_skew")
+# kw,ps,ds = p_and_d(df,"kurt")
+# kw,ps,ds = p_and_d(df,"mod_kurt")
 
-#SKEWNESS GAMMA
-p1,p2,p3,d1,d2,d3 = p_and_d(params[0][:,3],params[1][:,3],params[2][:,3])
-print(f"GAMMA SKEWNESS\np-val (CNT,MCS),(CNT,UWS),(MCS,UWS): {p1},{p2},{p3}")
-print(f"cohen-d (CNT,MCS),(CNT,UWS),(MCS,UWS): ({d1:.3f},{d2:.3f},{d3:.3f})")
+for col in df.columns:
+    if col not in ("state","loc"):
+        a = p_and_d(df,col)
 
-#KURTOSIS EMPIRICAL
-p1,p2,p3,d1,d2,d3 = p_and_d(stats[0][:,3],stats[1][:,3],stats[2][:,3])
-print(f"\nEMPIRICAL KURTOSIS\np-val (CNT,MCS),(CNT,UWS),(MCS,UWS): ({p1},{p2},{p3})")
-print(f"cohen-d (CNT,MCS),(CNT,UWS),(MCS,UWS): ({d1:.3f},{d2:.3f},{d3:.3f})")
+# [p_and_d(df,col) for col in df.columns if col not in ("state","loc")]
 
-#KURTOSIS GAMMA
-p1,p2,p3,d1,d2,d3 = p_and_d(params[0][:,4],params[1][:,4],params[2][:,4])
-print(f"GAMMA KURTOSIS\np-val (CNT,MCS),(CNT,UWS),(MCS,UWS): ({p1},{p2},{p3})")
-print(f"cohen-d (CNT,MCS),(CNT,UWS),(MCS,UWS): ({d1:.3f},{d2:.3f},{d3:.3f})")
+
 
 #%% ploteo de las distribuciones y parámetros de levy para todos los individuos
-
-
-
 xaxis = np.linspace(xmin,xmax+5,1000)
 
 alfa = 0.5
@@ -216,41 +218,82 @@ legendsize=14
 linewidth=2.2
 sublinewidth=1
 
+def p_to_text(p_value):
+    if p_value < 0.001:
+        text = "***"
+    elif p_value <0.01:
+        text = "**"
+    elif p_value < 0.05:
+        text = "*"
+    else:
+        text = f"p={p_value:.3f}"
+    return text
 
-plt.figure(1)
+def plot_and_compare(df,col,title,yticks = None,ax=None):
+    p_omnibus, (p1,p2,p3), (d1,d2,d3) = p_and_d(df,col)
+    toplot = [df[df["state"]==st][col].values for st in states]
+    sns.swarmplot(toplot,color="black",alpha=0.8)
+    sns.boxplot(toplot,boxprops=dict(alpha=.8))
+    ax.set_xticks([0, 1, 2])
+    ax.set_xticklabels(["CNT", "MCS", "UWS"], fontsize=ticksize)
+    
+    ax.set_yticks(yticks)
+    ax.set_yticklabels([str(y) for y in yticks], fontsize=ticksize)
+    ax.spines[['top', 'right']].set_visible(False)
+    
+    deltay = (df[col].max()-df[col].min())*0.08
+    if p_omnibus < 0.05:
+        title +=p_to_text(p_omnibus)
+        if p1 < 0.05:
+            h = df[col].max()+deltay
+            ax.hlines(h,0,1,color="black")
+            ax.text(0.5,h,p_to_text(p1),ha="center")
+        if p2 < 0.05:
+            h = df[col].max()+2*deltay
+            ax.hlines(h,0,2,color="black")
+            ax.text(1,h,p_to_text(p2),ha="center")
+        if p3 < 0.05:
+            h = df[col].max()+3*deltay
+            ax.hlines(h,1,2,color="black")
+            ax.text(1.5,h,p_to_text(p3),ha="center")
+    ax.set_title(title,weight="bold",fontsize=labelsize)    
+
+
+
+plt.figure(1,figsize=(11.69,8.27))
 plt.clf()
 
 ####################GOTTA TRY SOME DISTRIBUTIONS
 #general pooled distributions
 ax=plt.subplot2grid((1,4),(0,0),colspan=2)
-plt.title("Pooled distributions",fontsize=titlesize,weight="bold")
+ax.set_title("Pooled distributions",fontsize=titlesize,weight="bold")
 dist = CNT_jumps_pooled
 c,loc,scale = pooled_fit["CNT"]
 print(f"CNT\nmean\tmedian\tstd\tCV\n{dist.mean():.4f}\t{np.median(dist):.4f}\t{dist.std():.4f}\t{dist.std()/dist.mean():.4f}")
-plt.hist(dist,label="CNT",density=True,alpha=alfa,bins=50,color="tab:blue")
+ax.hist(dist,label="CNT",density=True,alpha=alfa,bins=50,color="tab:blue")
 pdf = weibull.pdf(xaxis,c=c,loc=loc,scale=scale)
-plt.plot(xaxis,pdf,color="tab:blue",linewidth=linewidth)
+ax.plot(xaxis,pdf,color="tab:blue",linewidth=linewidth)
 
 
 dist = MCS_jumps_pooled
 c,loc,scale = pooled_fit["MCS"]
 print(f"MCS\n{dist.mean():.4f}\t{np.median(dist):.4f}\t{dist.std():.4f}\t{dist.std()/dist.mean():.4f}")
-plt.hist(dist,label="MCS",density=True,alpha=alfa,bins=50,color="tab:orange")
+ax.hist(dist,label="MCS",density=True,alpha=alfa,bins=50,color="tab:orange")
 pdf = weibull.pdf(xaxis,c=c,loc=loc,scale=scale)
-plt.plot(xaxis,pdf,color="tab:orange",linewidth=linewidth)
+ax.plot(xaxis,pdf,color="tab:orange",linewidth=linewidth)
 
 dist = UWS_jumps_pooled
 c,loc,scale = pooled_fit["UWS"]
 print(f"UWS\n{dist.mean():.4f}\t{np.median(dist):.4f}\t{dist.std():.4f}\t{dist.std()/dist.mean():.4f}")
-plt.hist(dist,label="UWS",density=True,alpha=alfa,bins=50,color="tab:green")
+ax.hist(dist,label="UWS",density=True,alpha=alfa,bins=50,color="tab:green")
 pdf = weibull.pdf(xaxis,c=c,loc=loc,scale=scale)
-plt.plot(xaxis,pdf,color="tab:green",linewidth=linewidth)
+ax.plot(xaxis,pdf,color="tab:green",linewidth=linewidth)
 
-plt.legend(loc="upper left",fontsize=legendsize)
-plt.xticks((0,10,20,30,40,50,60),(0,10,20,30,40,50,60),fontsize=ticksize)
-plt.yticks((0,0.02,0.04,0.06,0.08),(0,0.02,0.04,0.06,0.08),fontsize=ticksize)
-plt.ylabel("Normalized count",size=labelsize)
-plt.xlabel("Jump length",size=labelsize)
+ax.legend(loc="upper left",fontsize=legendsize)
+ax.set_xticks((0,10,20,30,40,50,60),(0,10,20,30,40,50,60),fontsize=ticksize)
+ax.set_yticks((0,0.02,0.04,0.06,0.08),(0,0.02,0.04,0.06,0.08),fontsize=ticksize)
+ax.set_ylabel("Normalized count",size=labelsize)
+ax.set_xlabel("Jump length",size=labelsize)
 ax.spines[['top', 'right']].set_visible(False)
 ##distributions by state
 x0,y0,width,height,space = 0.7,0.73,0.2,0.2,0.28
@@ -264,7 +307,8 @@ subax = ax.inset_axes([x0, y0-0*space, width, height])
 subax.text(xtext,ytext, 'CNT', transform=subax.transAxes,fontsize=subtitlesize,weight="bold")
 for i in range(13):
     dist = CNT_jump_lengths[i]
-    c,loc,scale,_,_,_,_ = CNT_params[i] ##tiene 5
+    # c,loc,scale,_,_,_,_ = CNT_params[i] ##tiene 5
+    c,loc,scale = df[df["state"]=="CNT"].iloc[i][["shape","loc","scale"]]
     pdf = weibull.pdf(xaxis,c=c,loc=loc,scale=scale)
     subax.plot(xaxis,pdf,color="black",alpha=alfasub,linewidth=sublinewidth)
     subax.hist(dist,label=i,density=True,alpha=alfa,bins=20)
@@ -278,7 +322,8 @@ subax = ax.inset_axes([x0, y0-1*space, width, height])
 subax.text(xtext,ytext, 'MCS', transform=subax.transAxes,fontsize=subtitlesize,weight="bold")
 for i in range(25):
     dist = MCS_jump_lengths[i]
-    c,loc,scale,_,_,_,_ = MCS_params[i] ##tiene 5
+    # c,loc,scale,_,_,_,_ = MCS_params[i] ##tiene 5
+    c,loc,scale = df[df["state"]=="MCS"].iloc[i][["shape","loc","scale"]]
     pdf = weibull.pdf(xaxis,c=c,loc=loc,scale=scale)
     subax.plot(xaxis,pdf,color="black",alpha=alfasub,linewidth=sublinewidth)
     subax.hist(dist,label=i,density=True,alpha=alfa,bins=20)
@@ -291,7 +336,8 @@ subax = ax.inset_axes([x0, y0-2*space, width, height])
 subax.text(xtext,ytext, 'UWS', transform=subax.transAxes,fontsize=subtitlesize,weight="bold")
 for i in range(20):
     dist = UWS_jump_lengths[i]
-    c,loc,scale,_,_,_,_ = UWS_params[i] ##tiene 5
+    # c,loc,scale,_,_,_,_ = UWS_params[i] ##tiene 5
+    c,loc,scale = df[df["state"]=="UWS"].iloc[i][["shape","loc","scale"]]
     pdf = weibull.pdf(xaxis,c=c,loc=loc,scale=scale)
     subax.plot(xaxis,pdf,color="black",alpha=alfasub,linewidth=sublinewidth)
     subax.hist(dist,label=i,density=True,alpha=alfa,bins=20)
@@ -301,67 +347,30 @@ subax.set_xticks((0,30,60),(0,30,60),fontsize=ticksize)
 subax.set_yticks((0,0.05,0.1),(0,0.05,0.1),fontsize=ticksize)
 #parameters
 
+
+
 ###########empirical stuff: std, skewness and GoF
 ax=plt.subplot2grid((3,4),(0,2))
-plt.title("Empirical Skewness",weight="bold")
-toplot = [sta[:,2] for sta in stats]
-sns.swarmplot(toplot,color="black")
-sns.boxplot(toplot)
-plt.xticks([0,1,2],["CNT","MCS","UWS"],fontsize=ticksize)
-plt.yticks((-0.5,0,0.5,1),(-0.5,0,0.5,1),fontsize=ticksize)
-ax.spines[['top', 'right']].set_visible(False)
+plot_and_compare(df,"skew","Empirical Skewness",yticks= (-0.5,0,0.5,1),ax=ax)
+
+ax=plt.subplot2grid((3,4),(0,3))
+plot_and_compare(df,"mod_skew","Weibull skewness",yticks=(-0.4,-0.2,0,0.2,0.4,0.6),ax=ax)
 
 ax=plt.subplot2grid((3,4),(1,2))
-plt.title("Variance",weight="bold")
-toplot = [sta[:,1] for sta in stats]
-sns.swarmplot(toplot,color="black")
-sns.boxplot(toplot)
-plt.xticks([0,1,2],["CNT","MCS","UWS"],fontsize=ticksize)
-plt.yticks((25,50,75,100,125,150),(25,50,75,100,125,150),fontsize=ticksize)
-ax.spines[['top', 'right']].set_visible(False)
+plot_and_compare(df,"var","Variance",yticks=(25,50,75,100,125,150),ax=ax)
+
+ax = plt.subplot2grid((3,4),(1,3))
+plot_and_compare(df,"entropy","Weibull Entropy",yticks=(3,3.5,10),ax=ax)
 
 ax=plt.subplot2grid((3,4),(2,2))
-plt.title("Weibull fit KS-distance",weight="bold")
-toplot = [param[:,-1] for param in params]
-sns.swarmplot(toplot,color="black")
-sns.boxplot(toplot)
-plt.xticks([0,1,2],["CNT","MCS","UWS"],fontsize=ticksize)
-plt.yticks((0,0.02,0.04,0.06,0.08,0.1),(0,0.02,0.04,0.06,0.08,0.1),fontsize=ticksize)
-ax.spines[['top', 'right']].set_visible(False)
-
-
-#############fit stuff:
-ax=plt.subplot2grid((3,4),(0,3))
-plt.title("Weibull Skewness",weight="bold")
-toplot = [param[:,5] for param in params]
-sns.swarmplot(toplot,color="black")
-sns.boxplot(toplot)
-plt.xticks([0,1,2],["CNT","MCS","UWS"],fontsize=ticksize)
-plt.yticks((-0.4,-0.2,0,0.2,0.4,0.6),(-0.4,-0.2,0,0.2,0.4,0.6),fontsize=ticksize)
-ax.spines[['top', 'right']].set_visible(False)
-
-ax=plt.subplot2grid((3,4),(1,3))
-plt.title("Weibull Var",weight="bold")
-toplot = [param[:,4] for param in params]
-sns.swarmplot(toplot,color="black")
-sns.boxplot(toplot)
-plt.xticks([0,1,2],["CNT","MCS","UWS"],fontsize=ticksize)
-plt.yticks((25,50,75,100,125,150),(25,50,75,100,125,150),fontsize=ticksize)
-ax.spines[['top', 'right']].set_visible(False)
-
+plot_and_compare(df,"wei_ks","KS distance fit",yticks=(0,0.02,0.04,0.06,0.08,0.1),ax=ax)
 
 ax=plt.subplot2grid((3,4),(2,3))
-plt.title("Weibull shape parameter",weight="bold")
-toplot = [param[:,0] for param in params]
-sns.swarmplot(toplot,color="black")
-sns.boxplot(toplot)
-plt.xticks([0,1,2],["CNT","MCS","UWS"],fontsize=ticksize)
-plt.yticks((2,3,4,5,6,7),(2,3,4,5,6,7),fontsize=ticksize)
-ax.spines[['top', 'right']].set_visible(False)
+plot_and_compare(df,"shape","Weibull shape param",yticks=(2,3,4,5,6,7),ax=ax)
 
-# plt.tight_layout()
+plt.tight_layout()
 # plt.subplots_adjust(wspace=0.4, hspace=0.6)
-# plt.savefig("fig2.svg",dpi=300,transparent=True)
+plt.savefig("fig2_new.svg",dpi=300,transparent=True)
 plt.show()
 
 #%% print parameters

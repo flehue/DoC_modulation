@@ -138,6 +138,13 @@ occ_df["centroid"] = 3*["c1","c2","c3"]
 occ_df["state"] = 3*["CNT"]+3*["MCS"]+3*["UWS"]
 
 
+##on a general level
+rho1,p1 = spearmanr(cors,countsCNT)
+rho2,p2 = spearmanr(cors,countsMCS)
+rho3,p3 = spearmanr(cors,countsUWS)
+print(rho1,p1,rho2,p2,rho3,p3)
+
+
 
 #%%THE VERY FIGURE
 colors = ("crimson","orange","forestgreen")
@@ -242,6 +249,8 @@ ax.legend(fontsize=legendsize)
 ax.spines[["top","right"]].set_visible(False)
 
 alfaind = 0.7
+
+
 ###occupations by individual
 ax = plt.subplot2grid((2,3),(1,2))
 ax.set_title("Occupation by Individual",fontsize=titlesize)

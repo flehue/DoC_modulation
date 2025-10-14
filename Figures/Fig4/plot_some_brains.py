@@ -3,17 +3,18 @@ from neuromaps.datasets import fetch_fslr
 from surfplot import Plot
 import numpy as np
 import matplotlib.pyplot as plt
-import sys;sys.path.append("../")
+import sys;sys.path.append("../../")
 import utils
 import HMA
+import pandas as pd
 
 
 # Load GIFTI label file (left hemisphere)
-lh_labels_gii = nb.load('figures/AAL.32k.L.label.gii')
+lh_labels_gii = nb.load('../AAL.32k.L.label.gii')
 lh_labels = lh_labels_gii.darrays[0].data.astype(int)
 
 # Load GIFTI label file (right hemisphere)
-rh_labels_gii = nb.load('figures/AAL.32k.R.label.gii')
+rh_labels_gii = nb.load('../AAL.32k.R.label.gii')
 rh_labels = rh_labels_gii.darrays[0].data.astype(int)
 
 #%%
@@ -21,12 +22,17 @@ rh_labels = rh_labels_gii.darrays[0].data.astype(int)
 fig_width_px = 4500
 fig_height_px = 2400
 #%%
-struct = np.loadtxt("../structural_Deco_AAL.txt")
-maps = np.load("figures/maps2brain.npz")
-mapnames = ("Hin_node","klsCNT_broken","klsMCS_broken","klsUWS_broken")
+# struct = np.loadtxt("../structural_Deco_AAL.txt")
+maps = np.load("maps2brain.npz")
+mapnames = maps.files
+AALlabels = pd.read_csv("../../../sorted_AAL_labels.txt")["label"].values #nombre de las areas
+print(AALlabels[np.argsort(maps["Hin_node"])])
+
+#%%
+# mapnames = ("Hin_node","klsCNT_broken","klsMCS_broken","klsUWS_broken")
 for n,name in enumerate(mapnames):
     mapp = maps[name]
-    vector_map = utils.reord(mapp,do="LlrR to LlRr")
+    vector_map = utils.reord(mapp,do="LlrR to LlRr")+1e-6
     # Map data to vertices
     lh_vertex_data = np.zeros_like(lh_labels, dtype=float)
     rh_vertex_data = np.zeros_like(rh_labels, dtype=float)
@@ -41,11 +47,13 @@ for n,name in enumerate(mapnames):
         lh_vertex_data /= maxi
         rh_vertex_data /= maxi
     
+
     # Plotting
     surfaces = fetch_fslr()
     lh, rh = surfaces['inflated']
-    p = Plot(lh, rh, views=["lateral","medial"], zoom=1.25, size=(int(fig_width_px/3), int(fig_height_px/3)))
+    p = Plot(lh, rh, views=["lateral","medial"], zoom=1.5, size = (1000,800))
     p.add_layer({'left': lh_vertex_data, 'right': rh_vertex_data}, cmap='hot_r', cbar=True, color_range=(0, 1))
     fig = p.build()
-    fig.savefig(f"figures/preplot_{name}.svg", dpi=300, transparent=True)
+    fig.savefig(f"preplot_{name}.svg", dpi=300, transparent=True)
+    # fig.savefig(f"preplot_{name}.svg")
 # plt.close(fig)

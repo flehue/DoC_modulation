@@ -32,14 +32,14 @@
      showguides="true"
      inkscape:lockguides="false"
      inkscape:zoom="0.8466965"
-     inkscape:cx="772.41373"
-     inkscape:cy="359.633"
+     inkscape:cx="935.40011"
+     inkscape:cy="532.06787"
      inkscape:window-width="1920"
      inkscape:window-height="991"
      inkscape:window-x="-9"
      inkscape:window-y="-9"
      inkscape:window-maximized="1"
-     inkscape:current-layer="figure_1" />
+     inkscape:current-layer="svg805" />
   <metadata
      id="metadata1">
     <rdf:RDF>
@@ -6353,7 +6353,7 @@
      id="text805"><tspan
        sodipodi:role="line"
        id="tspan805"
-       style="font-weight:bold;font-size:36px;stroke-width:0.75"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:36px;font-family:Arial;-inkscape-font-specification:'Arial Bold';stroke-width:0.75"
        x="-0.421875"
        y="26.173828">A</tspan></text>
   <text
@@ -6364,7 +6364,7 @@
      id="text806"><tspan
        sodipodi:role="line"
        id="tspan806"
-       style="font-weight:bold;stroke-width:0.75"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:Arial;-inkscape-font-specification:'Arial Bold';stroke-width:0.75"
        x="766.66016"
        y="26.173828">B</tspan></text>
   <text
@@ -6375,7 +6375,7 @@
      id="text807"><tspan
        sodipodi:role="line"
        id="tspan807"
-       style="font-weight:bold;stroke-width:0.75"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:Arial;-inkscape-font-specification:'Arial Bold';stroke-width:0.75"
        x="-1.8105469"
        y="321.68359">C</tspan></text>
   <text
@@ -6386,7 +6386,7 @@
      id="text808"><tspan
        sodipodi:role="line"
        id="tspan808"
-       style="font-weight:bold;stroke-width:0.75"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:Arial;-inkscape-font-specification:'Arial Bold';stroke-width:0.75"
        x="380.21826"
        y="321.17383">D</tspan></text>
   <text
@@ -6397,7 +6397,7 @@
      id="text809"><tspan
        sodipodi:role="line"
        id="tspan809"
-       style="font-weight:bold;stroke-width:0.75"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:Arial;-inkscape-font-specification:'Arial Bold';stroke-width:0.75"
        x="766.66016"
        y="321.17383">E</tspan></text>
 </svg>

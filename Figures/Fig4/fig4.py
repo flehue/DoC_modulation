@@ -12,12 +12,13 @@ import numpy as np
 import pickle
 import matplotlib.pyplot as plt
 from scipy.special import rel_entr as kl #relative entropy = KL distance
-from scipy.stats import linregress,spearmanr
+from scipy.stats import linregress,spearmanr,mannwhitneyu
 from scipy.stats import kstest
 import HMA
 import pandas as pd
 import seaborn as sns
 from statsmodels.stats.multitest import multipletests
+from matplotlib.patches import FancyBboxPatch
 import bct
 import matplotlib as mpl
 from plot_violins import violin_plot#(ax, data, color_names, alpha_violin = 1, s_box = 20, s_ind = 20,inds= None)
@@ -25,21 +26,6 @@ from plot_violins import violin_plot#(ax, data, color_names, alpha_violin = 1, s
 
 mpl.rcParams['axes.spines.right'] = False
 mpl.rcParams['axes.spines.top'] = False
-
-def scatter_subax(x,y,yticks=None,ax=None,color=None,hidexticks=True):
-    slope, intercept, r_value, p_value, std_err = linregress(x, y)
-    line = slope * x + intercept
-    #spearman
-    rho,pval = spearmanr(x,y)
-    ax.plot(x,line,linestyle=linestyle,color=color,alpha=1,label=f"ρ={rho:.3f}")
-    ax.scatter(x,y,alpha=scatteralfa,color=color)
-    if yticks:
-        ax.set_yticks(yticks[0],yticks[1],fontsize=ticksize)
-    ax.legend(fontsize=legendsize,loc="upper center")
-    ax.spines[['top', 'right']].set_visible(False)
-    if hidexticks:
-        ax.tick_params(labelbottom=False)
-        ax.xaxis.set_tick_params(length=0)
 
 
 def bar_subax(obs,y, cmap,yticks=None,ax=None,color=None,hidexticks=True):
@@ -54,6 +40,44 @@ def bar_subax(obs,y, cmap,yticks=None,ax=None,color=None,hidexticks=True):
     if hidexticks:
         ax.tick_params(labelbottom=False)
         ax.xaxis.set_tick_params(length=0)
+        
+def plot_significance_line(x1, x2, y, p_value, 
+                           x_text=None, cliff=None, ax= None,
+                           line_width=1.5, text_offset=0.002,linelength=0.001):
+
+    # Draw horizontal line
+    ax.plot([x1, x2], [y, y], color='black', lw=line_width)
+    # Draw vertical ticks
+    ax.plot([x1, x1], [y - linelength, y], color='black', lw=line_width)
+    ax.plot([x2, x2], [y - linelength, y], color='black', lw=line_width)
+
+    # Text
+    if x_text is None:
+        x_text = (x1 + x2) / 2
+    
+    if p_value < 0.001:
+        text = "***"
+    elif p_value <0.01:
+        text = "**"
+    elif p_value < 0.05:
+        text = "*"
+    else:
+        text = f"p={p_value:.3f}"
+    ax.text(x_text, y + text_offset, text, ha='center', va='bottom', fontsize=13)
+
+def cohen_d(low,high):
+    mean_high = np.mean(high)
+    mean_low  = np.mean(low)
+    
+    var_high = np.var(high)
+    var_low  = np.var(low)
+    
+    n_high = len(high)
+    n_low  = len(low)
+    # pooled SD per node
+    std_pooled = np.sqrt(((n_high - 1) * var_high + (n_low - 1) * var_low) / (n_high + n_low - 2))
+    return (mean_high - mean_low) / std_pooled
+    
 
 nodes= range(90)
 #%%cargar
@@ -65,8 +89,6 @@ with open('../../../fastDMF/output/sweep_summary_seeds0_19.pickle', 'rb') as f:
 
 with open('../../../fastDMF/empirical_truth/jump_distributions_dict_filt_ALLDIM.pickle', 'rb') as f:
     jump_dists_all = pickle.load(f)
-    
-####FORMATO output_dic[(G,node,seed)] = (corrs,eucs,jumps_high,counts_high)
 with open('../../../fastDMF/output/broken_nodes_resweep_analysis_seeds0-19.pickle', 'rb') as f:
     broken_data = pickle.load(f)
 del f
@@ -180,8 +202,10 @@ titlesize = 18
 subtitlesize=12
 labelsize = 14
 ticksize = 11
-legendsize=11
+legendsize=10
 height=4/13
+std = 0.05;xpos1 = 0;xpos2 = 2;tickangle=0
+epsilon=1e-2
 
 
 def create_filter_iqr(x,k=3):
@@ -202,40 +226,138 @@ def create_violin(obs,filtered,ax=None):
     color_names = ("tab:red","tab:blue")
     violin_plot(ax,[obs[filtered],obs[~filtered]],color_names = color_names,alpha_violin=0.7)
     
+def stripplot_Hin_force(ax):
+    val = forces[~outmask]/np.max(forces)
+    ax.scatter(xpos1+np.random.normal(scale=std,size=(len(val))),val,color="grey",alpha=alfa-0.1)
+    val = forces[outmask]/np.max(forces)
+    ax.scatter(xpos1+np.random.normal(scale=std,size=(len(val))),val,marker="x",color="crimson")
+
+    val = Hin_node[outmask]/np.max(Hin_node)
+    ax.scatter(xpos2+np.random.normal(scale=std,size=(len(val))),val,marker="x",color="crimson",alpha=1,label="High Hin")
+    val = Hin_node[~outmask]/np.max(Hin_node)
+    ax.scatter(xpos2+np.random.normal(scale=std,size=(len(val))),val,color="grey",alpha=alfa+0.1,label="Low Hin")
+
+    ax.hlines(k,xpos2-0.2,xpos2+0.2,color="crimson",linestyle="dashed")
+    ###
+    ax.set_xticks([xpos1,xpos2],("Node strength","Hin node"),rotation=tickangle,fontsize=ticksize)
+    ax.set_xlim(-0.4,xpos2+0.4)
+    ax.set_yticks((0,0.5,1),(0,0.5,1),fontsize=ticksize)
+    ax.set_ylabel("Normalized value",fontsize=labelsize)
+    ax.legend(fontsize=legendsize,loc="upper center")
     
-def recreate_the_two(x, y, outmask,
-                     yticks=None,colors=("gray", "tab:blue"),
-                     ax=None,loc=None,alpha=alfa):
-    from matplotlib.lines import Line2D
+    
+def recreate_the_two(x, y, minn,outmask,
+                     xticks=None,yticks=None,colors=("gray", "tab:blue"),
+                     ax=None,loc=None,alpha=alfa,p=None,d=None):
 
     # --- Subaxis (clean data, no legend) ---
-    # ax1 = ax.inset_axes((0.18, 0.8, 0.2, 0.15))
-    xclean = x[~outmask]
-    yclean = y[~outmask]
+    subax1 = ax.inset_axes((0,0,2/3-epsilon,1))
+    xclean = x[~outmask];yclean = y[~outmask]
+    xdirt =  x[outmask] ;ydirt  = y[outmask]
     slope, intercept, r_value, p_value, std_err = linregress(xclean, yclean)
-    ax.scatter(xclean, yclean, color=colors[0],alpha=alpha)
-    ax.plot(np.sort(xclean), slope * np.sort(xclean) + intercept, color=colors[0],linestyle="dashed")
+    subax1.scatter(xclean, yclean, color=colors[0],alpha=alpha)
+    # ax.plot(np.sort(xclean), slope * np.sort(xclean) + intercept, color=colors[0],linestyle="dashed")
 
     # --- Main axis (all data) ---
     slope, intercept, r_value, p_value, std_err = linregress(x, y)
-    ax.scatter(x[outmask], y[outmask], color=colors[1],marker="x")
-    ax.plot(np.sort(x), slope * np.sort(x) + intercept, color=colors[1],linestyle="dashed")
-    ax.xaxis.set_tick_params(length=0)
-    ax.set_xticks(())
+    subax1.scatter(xdirt, ydirt, color=colors[1],marker="x")
+    subax1.plot(np.sort(x), slope * np.sort(x) + intercept, color=colors[1],label=f"r={r_value:.3f}")
+    ###baseline
+    subax1.hlines(minn,0,1,color="tab:red",linestyle="dashed",alpha=0.7,label="baseline")
+    subax1.legend(loc=loc,fontsize=legendsize)
+    
+    
+    
+    subax2 = ax.inset_axes((2/3+epsilon,0,1/3-epsilon,1))
+    bp1=subax2.boxplot(yclean, positions=(0,), widths=0.6,patch_artist=True, showfliers=False)
+    subax2.scatter(0+np.random.normal(scale=std,size=len(yclean)),yclean,color="gray",alpha=alfa)
+    
+    subax2.scatter(1+np.random.normal(scale=std,size=len(ydirt)),ydirt,color=colors[1],marker="x",alpha=1)
+    bp2=subax2.boxplot(ydirt, positions=(1,), widths=0.6,patch_artist=True, showfliers=False)
+    for patch in list(bp1['boxes'])+list(bp2['boxes']):
+        patch.set_facecolor("none")  # transparent
+        patch.set_edgecolor("black")
     if yticks:
         ticklabels = [f"{val:.2f}" for val in yticks]
-        ax.set_yticks(yticks,ticklabels,fontsize=ticksize)
-        
-    # --- Legend (color-matched) ---
-    labels = [
-        f"r={linregress(xclean, yclean).rvalue:.3f}   no outlier ",
-        f"r={r_value:.3f}   all"
-    ]
-    handles = [
-        Line2D([0], [0], color=colors[0], lw=2),  # clean (red)
-        Line2D([0], [0], color=colors[1], lw=2)   # all (blue)
-    ]
-    ax.legend(handles, labels,loc=loc,fontsize=legendsize)
+        subax1.set_yticks(yticks,ticklabels,fontsize=ticksize)
+    subax2.set_yticks((yticks))
+    subax2.set_yticklabels(len(yticks)*[""])
+    if not xticks:
+        subax1.set_xticks(())
+        # subax1.xaxis.set_tick_params(length=0)
+        subax2.set_xticks(())
+        # subax2.xaxis.set_tick_params(length=0)
+    else:
+        subax1.set_xticks((0,0.5,1),(0,0.5,1),fontsize=ticksize)
+        subax1.set_xlabel("Hin node",fontsize=labelsize)
+        subax2.set_xticks((0,1),("Low\nHin", "High\nHin"),fontsize=labelsize)
+    text = ""
+    if p and d:
+        if p < 0.001:
+            add = "***"
+        elif p < 0.01:
+            add = "**"
+        elif p < 0.05:
+            add = "*"
+        text+=f"D({d:.2f})"  + add
+    subax2.text(0.5,0.7, text,fontsize=legendsize,
+            ha='center', va='center',transform=subax2.transAxes,rotation=90)
+    
+    ##ylims
+    scale = np.max(y)-np.min(y)
+    lower = np.min((np.min(y),minn))-scale*0.03
+    subax1.set_ylim(bottom=lower)
+    subax2.set_ylim(bottom=lower)
+    
+
+    
+values = Hin_node/Hin_node.max()
+def plot_three_groups(vals,mins,outmask,yticks=None,colors=colors,ax=None):
+    v1,v2,v3 = vals
+    m1,m2,m3 = mins
+    if yticks:
+        yt1,yt2,yt3 = yticks
+    else:
+        yt1,yt2,yt3 = None,None,None
+    
+    ####comparisons
+    l1,h1 = v1[~outmask],v1[outmask]
+    l2,h2 = v2[~outmask],v2[outmask]
+    l3,h3 = v3[~outmask],v3[outmask]
+    _,p1, = mannwhitneyu(l1,h1)
+    _,p2, = mannwhitneyu(l2,h2)
+    _,p3, = mannwhitneyu(l3,h3)
+    p1,p2,p3 = multipletests((p1,p2,p3), method='fdr_bh')[1]
+    
+    ##cohen ds
+    d1 = cohen_d(l1,h1)
+    d2 = cohen_d(l2,h2)
+    d3 = cohen_d(l3,h3)
+    
+    ax1 = ax.inset_axes((0,2/3,1,height))
+    recreate_the_two(values,v1,m1,outmask,colors = ("gray",colors[0]),
+                      yticks=yt1,ax=ax1,p=p1,d=d1)
+    
+    ax2 = ax.inset_axes((0,1/3,1,height))
+    recreate_the_two(values,v2,m2,outmask,colors = ("gray",colors[1]),
+                      yticks=yt2,ax=ax2,p=p2,d=d2)
+    # ax2.hlines(klminMCS,0,1,color="red",linestyle="dashed")
+    
+    ax3 = ax.inset_axes((0,0,1,height))
+    recreate_the_two(values,v3,m3,outmask,colors = ("gray",colors[2]),
+                      yticks=yt3,ax=ax3,xticks=True,p=p3,d=d3)
+    # ax3.hlines(klminUWS,0,1,color="red",linestyle="dashed")
+    
+    ax1.set_xticks([])
+    ax1.set_yticks([])
+    ax1.spines[:].set_visible(False)
+    ax2.set_xticks([])
+    ax2.set_yticks([])
+    ax2.spines[:].set_visible(False)
+    ax3.set_xticks([])
+    ax3.set_yticks([])
+    ax3.spines[:].set_visible(False)
+    
     
 # def res_res(y,x1,x2):
     
@@ -243,37 +365,18 @@ def recreate_the_two(x, y, outmask,
 
 slope, intercept, r_value, p_value, std_err = linregress(forces, Hin_node) ##here x is going to be force
 residuals = Hin_node-(slope * forces + intercept) ##integration - what force predicts
-outmask = create_filter_dumb(Hin_node,k=0.4)
+
+k = 0.4
+outmask = create_filter_dumb(Hin_node,k=k)
 # outmask = create_filter_std(Hin_node,k=2)
 
-
+    #%% figure
 fig=plt.figure(99)
 plt.clf()
-plt.suptitle("when breaking nodes")
-
-
-############integration vs node strength
-ax = plt.subplot2grid((4,3),(0,0))
-# sns.stripplot(Hin_node,color="gray")
-# outless = 
-# ax.scatter(np.random.normal(scale=0.3,size=(len(Hin_node))), )
-# ax.set_xticks((0,),["Hin_node"])
-ax.set_xlim(-0.3,1)
-
-
-
-ax1 = ax.inset_axes((0.5,0.4,0.5,1/2))
-ax1.scatter(forces[~outmask],Hin_node[~outmask],color="gray",alpha=0.6)
-ax1.scatter(forces[outmask],Hin_node[outmask],color="crimson",marker="x")
-ax1.set_xlabel("node strength");ax.set_ylabel("Hin_node")
-ax1.set_xticks((1.5,2.5,3.5),(1.5,2.5,3.5),fontsize=ticksize)
-ax1.set_yticks((0,0.5,1),(0,0.5,1),fontsize=ticksize)
-ax1.spines[['top', 'right']].set_visible(False)
-
 
 ##baseline occupations
-ax = plt.subplot2grid((4,3),(0,1))
-ax.set_title("Distance to Empirical Occupancies",fontsize=labelsize)
+ax = plt.subplot2grid((3,3),(0,0))
+ax.set_title("Distance to Empirical Occupancies",fontsize=labelsize+1)
 ax.plot(Gs,klCNT,color=colors[0])
 ax.plot(Gs,klMCS,color=colors[1])
 ax.plot(Gs,klUWS,color=colors[2])
@@ -282,19 +385,18 @@ ax.vlines(klGoMCS,-0.03,0.2,linestyle="dashed",color=colors[1],label=f"MCSo={klG
 ax.vlines(klGoUWS,-0.03,0.2,linestyle="dashed",color=colors[2],label=f"UWSo={klGoUWS:.2f}")
 ax.set_xticks((1.5,1.75,2,2.25,2.5),(1.5,1.75,2,2.25,2.5),fontsize=ticksize)
 ax.set_yticks((0,0.5,1),(0,0.5,1),fontsize=ticksize);ax.set_ylim([-0.05,1])
-ax.legend(
-    loc='upper left',
-    # bbox_to_anchor=(0.65, 0.7),  # (x, y) in axes coordinates
-    bbox_transform=ax.transAxes,
-    fontsize=legendsize,
-    framealpha=1
-)
 ax.set_xlabel(r"Coupling $G$",fontsize=labelsize)
 ax.set_ylabel("KL distance",fontsize=labelsize)
+#legend
+leg=ax.legend(fontsize=legendsize, loc="upper left",framealpha=1)
+leg.get_frame().set_facecolor("white")   # solid background
+leg.get_frame().set_edgecolor("black")   # border color
+leg.get_frame().set_linewidth(1.2)  
+
 
 ####baseline jumps
-ax = plt.subplot2grid((4,3),(0,2))
-ax.set_title("Distance to Empirical Jumps",fontsize=labelsize)
+ax = plt.subplot2grid((3,3),(0,1))
+ax.set_title("Distance to Empirical Jumps",fontsize=labelsize+1)
 ax.plot(Gs,ksCNT,color=colors[0])
 ax.plot(Gs,ksMCS,color=colors[1])
 ax.plot(Gs,ksUWS,color=colors[2])
@@ -303,73 +405,90 @@ ax.vlines(ksGoMCS,0.1,0.2,linestyle="dashed",color=colors[1],label=f"MCSo={ksGoM
 ax.vlines(ksGoUWS,0.1,0.2,linestyle="dashed",color=colors[2],label=f"UWSo={ksGoUWS:.2f}")
 ax.set_xticks((1.5,1.75,2,2.25,2.5),(1.5,1.75,2,2.25,2.5),fontsize=ticksize)
 ax.set_yticks((0.1,0.3,0.5),(0.1,0.3,0.5),fontsize=ticksize)
-ax.legend(
-    loc='upper left',
-    # bbox_to_anchor=(0.65, 0.7),  # (x, y) in axes coordinates
-    bbox_transform=ax.transAxes,
-    fontsize=legendsize,
-    framealpha=1
-)
 ax.set_xlabel(r"Coupling $G$",fontsize=labelsize)
 ax.set_ylabel("KS distance",fontsize=labelsize)
+leg=ax.legend(fontsize=legendsize, loc="upper left",framealpha=1)
+leg.get_frame().set_facecolor("white")   # solid background
+leg.get_frame().set_edgecolor("black")   # border color
+leg.get_frame().set_linewidth(1.2)  
 
-###break things occupation
-ax = plt.subplot2grid((4,3),(1,1),rowspan=3)
-ax1 = ax.inset_axes((0,2/3,1,height))
-recreate_the_two(residuals,klsCNT_broken,outmask,colors = ("gray",colors[0]),
-                 yticks=(0,0.04,0.08),ax=ax1)
-ax2 = ax.inset_axes((0,1/3,1,height))
-recreate_the_two(residuals,klsMCS_broken,outmask,colors = ("gray",colors[1]),
-                 yticks=(0,0.075,0.15),ax=ax2)
-ax3 = ax.inset_axes((0,0,1,height))
-recreate_the_two(residuals,klsUWS_broken,outmask,colors = ("gray",colors[2]),
-                 yticks=(0,0.2,0.4),ax=ax3)
-ax3.set_xlabel("Hin node @ node strength",fontsize=labelsize)
-xticks = np.arange(-0.5,0.7,0.25)
-ax3.set_xticks(xticks,[f"{val:.2f}" for val in xticks],fontsize=ticksize)
 
-ax.yaxis.set_tick_params(length=0)
-ax.set_yticks(())
-ax.xaxis.set_tick_params(length=0)
-ax.set_xticks(())
-ax.set_ylabel("Distance to Occupations (KL)",fontsize=labelsize,labelpad=60)
+xticks = (0,0.5,1)
+
+
+############integration vs node strength
+ax = plt.subplot2grid((3,6),(0,4))
+stripplot_Hin_force(ax)
+
+
+########break things occupation
+ax = plt.subplot2grid((3,3),(1,0),rowspan=2)
+ax.set_title("Fit to occupations excluding areas",fontsize=labelsize+1)
+plot_three_groups((klsCNT_broken,klsMCS_broken,klsUWS_broken),mins = (klminCNT,klminMCS,klminUWS),
+                  outmask=outmask,yticks = ((0,0.04,0.08),(0,0.08,0.16),(0.1,0.25,0.4)),
+                  colors = colors,ax=ax)
+ax.set_xticks([])
+ax.set_yticks([])
+ax.spines[:].set_visible(False)
+# ax.set_ylabel("Distance to Jumps (KS)",fontsize=labelsize,labelpad=50)
 for i, label in enumerate(['CNT', 'MCS', 'UWS']):
-    ax.text(-0.12, (5/6,3/6,1/6)[i], label, fontsize=labelsize,
+    ax.text(-0.11, (5/6,3/6,1/6)[i], label, fontsize=labelsize,
             ha='right', va='center', transform=ax.transData,rotation=90)
 ax.spines[['top','left','bottom','right']].set_visible(False)
-
 
 #########break things jump
-ax = plt.subplot2grid((4,3),(1,2),rowspan=3)
-ax1 = ax.inset_axes((0,2/3,1,height))
-recreate_the_two(residuals,ksCNT_broken,outmask,colors = ("gray",colors[0]),
-                 yticks=list(np.arange(0.1,0.19,0.04)),ax=ax1)
-ax2 = ax.inset_axes((0,1/3,1,height))
-recreate_the_two(residuals,ksMCS_broken,outmask,colors = ("gray",colors[1]),
-                 yticks=list(np.arange(0.05,0.16,0.05)),ax=ax2)
-ax3 = ax.inset_axes((0,0,1,height))
-recreate_the_two(residuals,ksUWS_broken,outmask,colors = ("gray",colors[2]),
-                 yticks=list(np.arange(0.1,0.21,0.05)),ax=ax3)
-ax3.set_xlabel("Hin node @ node strength",fontsize=labelsize)
-ax3.set_xticks(xticks,[f"{val:.2f}" for val in xticks],fontsize=ticksize)
-
-ax.yaxis.set_tick_params(length=0)
-ax.set_yticks(())
-ax.xaxis.set_tick_params(length=0)
-ax.set_xticks(())
-ax.set_ylabel("Distance to Jumps (KS)",fontsize=labelsize,labelpad=60)
+ax = plt.subplot2grid((3,3),(1,1),rowspan=2)
+ax.set_title("Fit to jumps excluding areas",fontsize=labelsize+1)
+plot_three_groups((ksCNT_broken,ksMCS_broken,ksUWS_broken),mins = (ksminCNT,ksminMCS,ksminUWS),
+                  outmask=outmask,yticks = ((0.1,0.16),(0.1,0.16),(0.1,0.2)),
+                  colors = colors,ax=ax)
+ax.set_xticks([])
+ax.set_yticks([])
+ax.spines[:].set_visible(False)
 for i, label in enumerate(['CNT', 'MCS', 'UWS']):
-    ax.text(-0.12, (5/6,3/6,1/6)[i], label, fontsize=labelsize,
+    ax.text(-0.11, (5/6,3/6,1/6)[i], label, fontsize=labelsize,
             ha='right', va='center', transform=ax.transData,rotation=90)
 ax.spines[['top','left','bottom','right']].set_visible(False)
 
+####brains
+ax = plt.subplot2grid((3,6),(1,4),rowspan=2)
+ax.set_title("Excluded areas KL",fontsize=labelsize+1)
+ax.set_xticks([])
+ax.set_yticks([])
+ax.spines[:].set_visible(False)
+for i, label in enumerate(['CNT', 'MCS', 'UWS']):
+    ax.text(-0.11, (5/6,3/6,1/6)[i], label, fontsize=labelsize,
+            ha='right', va='center', transform=ax.transData,rotation=90)
+ax.spines[['top','left','bottom','right']].set_visible(False)
 
-fig.subplots_adjust(wspace=0.4, # horizontal space between axes
-                    hspace=0.5  # vertical space between axes
-                    )
+ax = plt.subplot2grid((3,6),(1,5),rowspan=2)
+ax.set_title("Excluded areas KS",fontsize=labelsize+1)
+ax.set_xticks([])
+ax.set_yticks([])
+ax.spines[:].set_visible(False)
+# for i, label in enumerate(['CNT', 'MCS', 'UWS']):
+#     ax.text(-0.1, (5/6,3/6,1/6)[i], label, fontsize=labelsize,
+#             ha='right', va='center', transform=ax.transData,rotation=90)
+ax.spines[['top','left','bottom','right']].set_visible(False)
 
-# plt.tight_layout()
+
+
+
+plt.tight_layout()
+# plt.savefig("prefig4_better.svg",dpi=300,transparent=True)
 plt.show()
+
+#%%
+# norm = lambda x: (x-x.min())/(x.max()-x.min())
+# to_save = {"Hin_node":norm(Hin_node),
+#            "klsCNT_broken":norm(klsCNT_broken),
+#            "klsMCS_broken":norm(klsMCS_broken),
+#            "klsUWS_broken":norm(klsUWS_broken),
+#            "ksCNT_broken":norm(ksCNT_broken),
+#            "ksMCS_broken":norm(ksMCS_broken),
+#            "ksUWS_broken":norm(ksUWS_broken)}
+# np.savez_compressed("maps2brain.npz",**to_save)
+
 
 
 #%% neurosynth
@@ -393,145 +512,68 @@ for c,term in enumerate(cognitive_terms): #71 es consciousness
     r,p = pearsonr(Hse_node,mapp)
     if p < 0.001:
         print(f"r={r:.3f},p={p}",term)
-        
+
+
+#%%surveying the Hin node and node strength topographic distribution        
+
+outmask = create_filter_dumb(Hin_node,k=k)
+
+
 ###rsn
 names = ("Vis","ES","Aud","SM","DM","EC")
 rsn = np.loadtxt(neurosynth_folder+"RSN_AAL_Enzo.txt")
 for n,name in enumerate(names): #########SE NOTA QUE COINCIDE CON LA DM network
-    print(name,":", AALlabels[rsn[:,n]==1])
-
+    if name == "DM":
+        print(name,":", AALlabels[rsn[:,n]==1])
 print("\noutliers: ",AALlabels[outmask])
 
 
+full_df = pd.DataFrame()
+full_df["label"] = AALlabels
+full_df["Hin_node"] = Hin_node/Hin_node.max()
+full_df["force"] = forces/forces.max()
+full_df["klCNT_broken"] = klsCNT_broken/klsCNT_broken.max()
 
-#%% plot
-colors = ("tab:blue","tab:orange","tab:green")
-hlinecolor = "tab:red"
-
-alfa = 0.5
-scatteralfa = 0.5
-titlesize = 18
-subtitlesize=12
-labelsize = 14
-ticksize = 14
-legendsize=14
-
-###scatters
-
-linestyle = "solid"
+##let's look for those exceptions
 
 
 
-plt.figure(96)
+
+
+force_th,Hin_th = 0.75,0.4
+mask =  (full_df["force"] > 0.7) & (full_df["Hin_node"]<= 0.4) 
+print("\nhigh force but low Hin:",full_df[mask])
+
+plt.figure(4)
 plt.clf()
-cmap="Reds"
-ax = plt.subplot2grid((5,3),(2,2),rowspan=3)
-ax.set_title("Integration residuals",fontsize=titlesize)
+plt.subplot(221)
+plt.scatter(full_df["force"],full_df["Hin_node"],alpha=0.7,marker="o")
+plt.fill_between(np.arange(0.7,1.01,0.01),0,0.4,color="gray",alpha=0.4)
+for a,area in enumerate(AALlabels):
+    if mask[a]:
+        # plt.text(float(full_df["force"].iloc[a]),
+        #           float(full_df["Hin_node"].iloc[a]),
+        #           area, rotation=np.random.uniform(low=0,high=90))
+        plt.scatter([float(full_df["force"].iloc[a])],
+                  [float(full_df["Hin_node"].iloc[a])],
+                  label=area)
+    if "Thalamus" in area:
+        plt.scatter([float(full_df["force"].iloc[a])],
+                  [float(full_df["Hin_node"].iloc[a])],
+                  label=area,color="black")
+plt.legend()
 
-ax1 = ax.inset_axes((0,2/3,1,height))
-bar_subax(obs=klsCNT_broken,y=residuals, cmap=cmap,ax=ax1)
-ax2 = ax.inset_axes((0,1/3,1,height))
-bar_subax(obs=klsMCS_broken,y=residuals, cmap=cmap,ax=ax2)
-ax3 = ax.inset_axes((0,0,1,height))
-bar_subax(obs=klsUWS_broken,y=residuals, cmap=cmap,ax=ax3)
-
-
-ax.yaxis.set_tick_params(length=0)
-ax.set_yticks(())
-ax.xaxis.set_tick_params(length=0)
-ax.set_xticks(())
-ax.set_ylabel("KL distance",fontsize=labelsize,labelpad=70)
-for i, label in enumerate(['to CNT', 'to MCS', 'to UWS']):
-    ax.text(-0.17, (5/6,3/6,1/6)[i], label, fontsize=labelsize,
-            ha='right', va='center', transform=ax.transData,rotation=90)
-for spine in ax.spines.values():
-    spine.set_visible(False)
-
-
-
-plt.subplots_adjust(wspace=0.4, hspace=0.4)
-# plt.tight_layout()
-# plt.savefig("figures/unfinished_fig4.svg",transparent=True,dpi=300)
-plt.show()
-
-#%% generate colorbar
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-import matplotlib.colors as mcolors
-
-# Customization parameters
-vmin = 0
-vmax = 1
-tick_fontsize = 12
-label_fontsize = 14
-label_text = 'Normalized value'
-
-# Create a ScalarMappable for the colorbar
-norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
-cmap = cm.get_cmap('hot_r')  # Reversed 'hot' colormap
-sm = cm.ScalarMappable(norm=norm, cmap=cmap)
-sm.set_array([])
-
-# Create the figure and vertical colorbar
-fig, ax = plt.subplots(figsize=(1.5, 6))
-fig.subplots_adjust(left=0.5)
-cbar = fig.colorbar(sm, ax=ax, orientation='vertical')
-
-# Customize ticks and label
-cbar.ax.tick_params(labelsize=tick_fontsize)
-cbar.set_label(label_text, fontsize=label_fontsize)
-
-# Remove the main axes (just keep the colorbar)
-ax.remove()
-# plt.savefig("figures/colorbar.svg",dpi=300,transparent= True)
+plt.xlabel("force")
+plt.ylabel("Hin node")
 plt.show()
 
 
-#%%
 
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.stats import linregress
 
-def check_incremental_effect(y, x1, x2):
-    """
-    Visualizes whether x2 adds information to predicting y
-    beyond what x1 explains.
-    """
-    # --- Plot y vs x1 and y vs x2
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-    
-    # y vs x1
-    axes[0].scatter(x1, y, alpha=0.7)
-    slope, intercept, _, _, _ = linregress(x1, y)
-    axes[0].plot(np.sort(x1), intercept + slope*np.sort(x1), color="red")
-    axes[0].set_xlabel("x1")
-    axes[0].set_ylabel("y")
-    axes[0].set_title("y vs x1")
-    
-    # y vs x2
-    axes[1].scatter(x2, y, alpha=0.7, color="orange")
-    slope, intercept, _, _, _ = linregress(x2, y)
-    axes[1].plot(np.sort(x2), intercept + slope*np.sort(x2), color="red")
-    axes[1].set_xlabel("x2")
-    axes[1].set_ylabel("y")
-    axes[1].set_title("y vs x2")
-    
-    # Residuals from y ~ x1 vs x2
-    slope, intercept, _, _, _ = linregress(x1, y)
-    y_hat = intercept + slope*x1
-    resid = y - y_hat
-    axes[2].scatter(x2, resid, alpha=0.7, color="green")
-    slope_r, intercept_r, _, _, _ = linregress(x2, resid)
-    axes[2].plot(np.sort(x2), intercept_r + slope_r*np.sort(x2), color="red")
-    axes[2].axhline(0, color="k", linestyle="--")
-    axes[2].set_xlabel("x2")
-    axes[2].set_ylabel("Residuals (y - ŷ from x1)")
-    axes[2].set_title("Do residuals depend on x2?")
-    
-    plt.tight_layout()
-    plt.show()
-    
-check_incremental_effect(y=klsCNT_broken, x1=forces, x2=Hin_node)
+
+
+
+
+
 
 

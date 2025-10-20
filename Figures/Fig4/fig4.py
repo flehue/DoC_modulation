@@ -135,7 +135,8 @@ euc /= len(seeds)
 corrs /= len(seeds)
 
 #sweep data KL occs
-klCNT,klMCS,klUWS = [np.array([kl(occs[g,:],emp_occs_all[s]).sum() for g in range(len(Gs))]) for s in range(3)]
+# klCNT,klMCS,klUWS = [np.array([kl(occs[g,:],emp_occs_all[s]).sum() for g in range(len(Gs))]) for s in range(3)]
+klCNT,klMCS,klUWS = [1/2*np.array([kl(occs[g,:],emp_occs_all[s]).sum() + kl(emp_occs_all[s],occs[g,:]).sum() for g in range(len(Gs))]) for s in range(3)]
 klGoCNT,klGoMCS,klGoUWS = [Gs[np.argmin(a)] for a in (klCNT,klMCS,klUWS)]
 print("kl optima at",klGoCNT,klGoMCS,klGoUWS)
 klminCNT,klminMCS,klminUWS = [np.min(a) for a in (klCNT,klMCS,klUWS)]
@@ -168,10 +169,13 @@ for key in broken_data.keys():
     if G == G_CNT_ks:
         jumps_broken[node,:] = broken_data[key][2]
         
-klsCNT_broken = np.array([kl(occs_broken[n,:],emp_occs_all[0]).sum() for n in range(len(nodes))]) ##todos los kl del sweep
-klsMCS_broken = np.array([kl(occs_broken[n,:],emp_occs_all[1]).sum() for n in range(len(nodes))]) ##todos los kl del sweep
-klsUWS_broken = np.array([kl(occs_broken[n,:],emp_occs_all[2]).sum() for n in range(len(nodes))]) ##todos los kl del sweep
+# klsCNT_broken = np.array([kl(occs_broken[n,:],emp_occs_all[0]).sum() for n in range(len(nodes))]) ##todos los kl del sweep
+# klsMCS_broken = np.array([kl(occs_broken[n,:],emp_occs_all[1]).sum() for n in range(len(nodes))]) ##todos los kl del sweep
+# klsUWS_broken = np.array([kl(occs_broken[n,:],emp_occs_all[2]).sum() for n in range(len(nodes))]) ##todos los kl del sweep
 
+klsCNT_broken = 1/2*np.array([kl(occs_broken[n,:],emp_occs_all[0]).sum() +kl(emp_occs_all[0],occs_broken[n,:]).sum() for n in range(len(nodes))]) ##todos los kl del sweep
+klsMCS_broken = 1/2*np.array([kl(occs_broken[n,:],emp_occs_all[1]).sum() +kl(emp_occs_all[1],occs_broken[n,:]).sum() for n in range(len(nodes))]) ##todos los kl del sweep
+klsUWS_broken = 1/2*np.array([kl(occs_broken[n,:],emp_occs_all[2]).sum() +kl(emp_occs_all[2],occs_broken[n,:]).sum() for n in range(len(nodes))]) ##todos los kl del sweep
 
 
 ksCNT_broken = np.array([kstest(jumps_broken[n,:],jump_dists_all["CNT"])[0] for n in range(len(nodes))])
@@ -180,17 +184,88 @@ ksUWS_broken = np.array([kstest(jumps_broken[n,:],jump_dists_all["UWS"])[0] for 
 
 
 #%%data for scatter
+def compute_laplacian(W, normalized=False):
+    """
+    Compute the Laplacian of a symmetric weighted adjacency matrix.
+    
+    Parameters
+    ----------
+    W : (n, n) array_like
+        Symmetric adjacency (connectivity) matrix with non-negative entries.
+    normalized : bool, optional
+        If True, compute the normalized Laplacian:
+            L = I - D^{-1/2} W D^{-1/2}
+        Otherwise, compute the unnormalized Laplacian:
+            L = D - W
+    
+    Returns
+    -------
+    L : (n, n) ndarray
+        The Laplacian matrix.
+    """
+    W = np.array(W, dtype=float)
+    if W.shape[0] != W.shape[1]:
+        raise ValueError("Input matrix must be square")
+
+    # Degree matrix (node strengths)
+    d = np.sum(W, axis=1)
+    
+    if normalized:
+        # Avoid division by zero
+        d_sqrt_inv = np.zeros_like(d)
+        nonzero = d > 0
+        d_sqrt_inv[nonzero] = 1.0 / np.sqrt(d[nonzero])
+        D_sqrt_inv = np.diag(d_sqrt_inv)
+        L = np.eye(W.shape[0]) - D_sqrt_inv @ W @ D_sqrt_inv
+    else:
+        D = np.diag(d)
+        L = D - W
+    return L
+
+
+
 
 forces = struct.sum(axis=1)
-Clus_num,Clus_size,H_all = HMA.Functional_HP(struct)
-Hin,Hse = HMA.Balance(struct, Clus_num, Clus_size)
-preHin_node,preHse_node = HMA.nodal_measures(struct, Clus_num, Clus_size)
-Hin_node = preHin_node/preHin_node.max()
-Hse_node= preHse_node/preHse_node.max()
+# Clus_num,Clus_size,H_all = HMA.Functional_HP(struct)
+# Hin,Hse = HMA.Balance(struct, Clus_num, Clus_size)
+# preHin_node,preHse_node = HMA.nodal_measures(struct, Clus_num, Clus_size)
+# Hin_node = preHin_node/preHin_node.max()
+# Hse_node= preHse_node/preHse_node.max()
+# betweenness_cent = bct.centrality.betweenness_wei(struct)
+
+Hin_node = np.linalg.eig(struct)[1][:,0]
 
 
-betweenness_cent = bct.centrality.betweenness_wei(struct)
 
+
+#%% compare struct and its laplacian
+# L = compute_laplacian(struct,normalized=True)
+# Clus_num,Clus_size,H_all = HMA.Functional_HP(L)
+# Hin,Hse = HMA.Balance(L, Clus_num, Clus_size)
+# preHin_node_L,preHse_node_L = HMA.nodal_measures(L, Clus_num, Clus_size)
+# Hin_node_L = preHin_node_L/preHin_node_L.max()
+# Hse_node_L = preHse_node_L/preHse_node_L.max()
+
+# plt.figure(98)
+# plt.clf()
+# plt.subplot(221)
+# plt.imshow(struct,cmap="jet")
+# plt.colorbar()
+# plt.subplot(222)
+# plt.imshow(L,cmap="jet")
+# plt.colorbar()
+
+# plt.subplot(223)
+# plt.scatter(Hin_node,Hin_node_L)
+# plt.xlabel("integration form struct")
+# plt.ylabel("integration form laplacian")
+# print(np.argmax(Hin_node_L))
+
+
+
+
+
+halt
 #%% some eyeballing
 colors = ("tab:blue","tab:orange","tab:green")
 ##experiment using two levels of integration
@@ -420,6 +495,11 @@ xticks = (0,0.5,1)
 ax = plt.subplot2grid((3,6),(0,4))
 stripplot_Hin_force(ax)
 
+ax = plt.subplot2grid((3,6),(0,5))
+ax.set_title("Hin node",fontsize=titlesize)
+ax.set_xticks([])
+ax.set_yticks([])
+ax.spines[:].set_visible(False)
 
 ########break things occupation
 ax = plt.subplot2grid((3,3),(1,0),rowspan=2)
@@ -475,8 +555,10 @@ ax.spines[['top','left','bottom','right']].set_visible(False)
 
 
 plt.tight_layout()
-# plt.savefig("prefig4_better.svg",dpi=300,transparent=True)
+# plt.savefig("prefig4_symmetrized.svg",dpi=300,transparent=True)
 plt.show()
+
+halt
 
 #%%
 # norm = lambda x: (x-x.min())/(x.max()-x.min())

@@ -17,7 +17,7 @@ from scipy.special import rel_entr as kl  # relative entropy = KL distance
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
-from scipy.stats import kstest,mannwhitneyu
+from scipy.stats import kstest,mannwhitneyu,pearsonr,spearmanr
 import sys
 sys.path.append("../../")
 
@@ -85,11 +85,18 @@ euc /= nseeds
 corrs /= nseeds
 jumps /= nseeds
 # sweep data
-klCNT = np.vstack([np.array([kl(occs[n, c, :], emp_occs_all[0]).sum()
+# klCNT = np.vstack([np.array([kl(occs[n, c, :], emp_occs_all[0]).sum()
+#                   for c in range(len(Cs))]) for n in nodes])
+# klMCS = np.vstack([np.array([kl(occs[n, c, :], emp_occs_all[1]).sum()
+#                   for c in range(len(Cs))]) for n in nodes])
+# klUWS = np.vstack([np.array([kl(occs[n, c, :], emp_occs_all[2]).sum()
+#                   for c in range(len(Cs))]) for n in nodes])
+
+klCNT = np.vstack([1/2*np.array([kl(occs[n, c, :], emp_occs_all[0]).sum() +kl(emp_occs_all[0],occs[n, c, :]).sum()
                   for c in range(len(Cs))]) for n in nodes])
-klMCS = np.vstack([np.array([kl(occs[n, c, :], emp_occs_all[1]).sum()
+klMCS = np.vstack([1/2*np.array([kl(occs[n, c, :], emp_occs_all[1]).sum() +kl(emp_occs_all[1],occs[n, c, :]).sum()
                   for c in range(len(Cs))]) for n in nodes])
-klUWS = np.vstack([np.array([kl(occs[n, c, :], emp_occs_all[2]).sum()
+klUWS = np.vstack([1/2*np.array([kl(occs[n, c, :], emp_occs_all[2]).sum() +kl(emp_occs_all[2],occs[n, c, :]).sum()
                   for c in range(len(Cs))]) for n in nodes])
 
 
@@ -378,12 +385,22 @@ ax.set_yticks(())
 
 plt.subplots_adjust(wspace=0.4, hspace=0.4)
 
-# plt.tight_layout()
-# plt.savefig("fig5.svg",dpi=300,transparent=True)
+plt.tight_layout()
+plt.savefig("fig5_symmetrized.svg",dpi=300,transparent=True)
 plt.show()
 
 
 halt
+
+#%%
+print("node strength",pearsonr(Hin_node,klys["CNT"][:,C_base_id]))
+print("node integration",pearsonr(forces,klys["CNT"][:,C_base_id]))
+
+
+
+print("node strength",spearmanr(Hin_node,klys["CNT"][:,C_base_id]))
+print("node integration",spearmanr(forces,klys["CNT"][:,C_base_id]))
+
 
 #%% save two files for the 
 
@@ -397,8 +414,7 @@ np.savez_compressed(f"maps2brain_C={C_base:.1f}.npz",**to_save)
 #%% for a fixed C, how close are we to each state?
 fig = plt.figure(3, figsize=(12, 6))
 plt.clf()
-fig.suptitle(f"KL distance with intercept variation C={
-             C_base}", fontsize=titlesize)
+fig.suptitle(f"KL distance with intercept variation C={C_base}", fontsize=titlesize)
 
 # to CNT
 plt.subplot(311)

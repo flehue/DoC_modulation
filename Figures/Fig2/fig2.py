@@ -370,7 +370,7 @@ plot_and_compare(df,"shape","Weibull shape param",yticks=(2,3,4,5,6,7),ax=ax)
 
 plt.tight_layout()
 # plt.subplots_adjust(wspace=0.4, hspace=0.6)
-plt.savefig("fig2_new.svg",dpi=300,transparent=True)
+# plt.savefig("fig2_new.svg",dpi=300,transparent=True)
 plt.show()
 
 #%% print parameters
